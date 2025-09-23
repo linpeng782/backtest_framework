@@ -9,12 +9,12 @@ import os
 import sys
 
 
-# 添加父目录到路径以导入因子工具包
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 # 导入信号文件读取模块
 from signal_reader import read_and_parse_signal_file
-from factor_utils import get_st_filter, get_suspended_filter, get_limit_up_filter
+
+# 导入本地的factor_utils模块（当前目录下）
+from data_utils import get_st_filter, get_suspended_filter, get_limit_up_filter
+
 
 # 动态选股：确保每日选出rank_n只股票（考虑停牌过滤）
 def select_top_n_stocks(row, n):
@@ -57,14 +57,16 @@ def apply_filters_and_select_stocks(pivot_df, rank_n):
     date_list = pivot_df.index.tolist()
     stock_list = pivot_df.columns.tolist()
 
-    # 1. 获取ST过滤和停牌过滤
-    print("应用ST和停牌过滤...")
+    # 1. 获取ST过滤、停牌过滤和涨停过滤
+    print("过滤：ST、停牌、开盘涨停")
     st_filter = get_st_filter(stock_list, date_list)
     suspended_filter = get_suspended_filter(stock_list, date_list)
-    suspended_filter.index.names = ["日期"]
+    limit_up_filter = get_limit_up_filter(stock_list, date_list)
 
     # 应用过滤器
-    filtered_pivot = pivot_df.mask(suspended_filter).mask(st_filter)
+    filtered_pivot = (
+        pivot_df.mask(suspended_filter).mask(st_filter).mask(limit_up_filter)
+    )
 
     # 2. 对每一行（每个交易日）应用选股逻辑
     print(f"开始动态选股，目标每日选出{rank_n}只股票...")

@@ -18,11 +18,15 @@ from rolling_backtest import rolling_backtest
 from signal_reader import get_stock_list_from_signal
 from performance_analyzer import get_performance_analysis
 
-# 添加父目录到路径以导入回测模块
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-# 导入因子工具包
-from factor_utils import get_price, get_vwap
+# 导入因子工具包（从父目录）
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, parent_dir)
+try:
+    from factor_utils import get_price, get_vwap
+finally:
+    # 确保在导入后移除路径，避免影响其他模块的导入
+    if parent_dir in sys.path:
+        sys.path.remove(parent_dir)
 
 
 class BacktestFramework:

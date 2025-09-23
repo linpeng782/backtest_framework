@@ -58,9 +58,10 @@ def get_limit_up_filter(stock_list, date_list):
     """
     :param stock_list: 股票池 -> list
     :param date_list: 研究周期 -> list
-    :return limit_up_filter: 涨停过滤券池 -> unstack∏
+    :return limit_up_filter: 涨停过滤券池 -> unstack
     """
 
+    # 获取开盘价和涨停价数据
     price = get_price(
         stock_list,
         date_list[0],
@@ -68,6 +69,8 @@ def get_limit_up_filter(stock_list, date_list):
         adjust_type="none",
         fields=["open", "limit_up"],
     )
+
+    # 计算涨停掩码：开盘价等于涨停价的情况
     limit_up_mask = (
         (price["open"] == price["limit_up"])
         .unstack("order_book_id")
