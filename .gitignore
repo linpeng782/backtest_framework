@@ -61,6 +61,7 @@ Thumbs.db
 backtest_results/
 results/
 output/
+outputs/
 
 # 配置文件中的敏感信息（如果有的话）
 config_local.yaml
