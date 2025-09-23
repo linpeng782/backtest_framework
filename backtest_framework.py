@@ -14,8 +14,8 @@ from tqdm import tqdm
 
 # 当作为脚本直接执行时的导入方式
 from get_buy_signal import get_buy_signal
-from backtest_rolling_flexible import rolling_backtest
-from signal_reader import get_stock_list_from_signal
+from rolling_backtest import rolling_backtest
+from signal_reader import get_stock_list_from_signal, read_signal_file
 from performance_analyzer import get_performance_analysis
 
 # 添加父目录到路径以导入回测模块
@@ -164,33 +164,6 @@ class CompleteBacktestFramework:
                 print("跳过VWAP数据获取，返回None")
                 return None
 
-    # ==================== 信号处理模块 ====================
-
-    def generate_portfolio_weights(self) -> pd.DataFrame:
-        """
-        步骤2: 生成投资组合权重
-
-        Returns:
-            投资组合权重矩阵 DataFrame
-        """
-        print("\n=== 步骤2: 生成投资组合权重 ===")
-
-        signal_path = os.path.join(self.data_root, self.signal_file)
-
-        print(f"处理信号文件: {signal_path}")
-        print(f"选股数量: {self.rank_n}")
-
-        portfolio_weights = get_buy_signal(signal_path, rank_n=self.rank_n)
-
-        if portfolio_weights is None:
-            raise ValueError("生成投资组合权重失败")
-
-        print(f"投资组合权重矩阵形状: {portfolio_weights.shape}")
-        print(f"交易日期数量: {len(portfolio_weights.index)}")
-        print(f"股票数量: {len(portfolio_weights.columns)}")
-
-        return portfolio_weights
-
     def save_results(self, results: Dict[str, Any]) -> None:
         """
         步骤5: 保存回测结果（可选）
@@ -243,13 +216,14 @@ class CompleteBacktestFramework:
         try:
             # 步骤1: 数据获取
             signal_path = os.path.join(self.data_root, self.signal_file)
+
             stock_list = get_stock_list_from_signal(signal_path)
-            
+
             # 获取VWAP数据
             vwap_df = self.get_vwap_data(stock_list)
 
-            # 步骤2: 信号处理
-            portfolio_weights = self.generate_portfolio_weights()
+            # 步骤2: 生成投资组合权重
+            portfolio_weights = get_buy_signal(signal_path, rank_n=self.rank_n)
 
             account_result = rolling_backtest(
                 portfolio_weights=portfolio_weights,
@@ -257,9 +231,6 @@ class CompleteBacktestFramework:
                 portfolio_count=self.portfolio_count,
                 rebalance_frequency=self.rebalance_frequency,
             )
-
-            # 步骤3: 回测执行
-            # account_result = self.run_backtest_engine(portfolio_weights, vwap_df)
 
             # 步骤4: 性能分析 - 直接使用独立的性能分析模块
             print("\n=== 步骤4: 分析回测性能 ===")

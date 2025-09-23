@@ -10,7 +10,7 @@ import yaml
 # 添加当前目录到路径
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from complete_backtest import CompleteBacktestFramework
+from backtest_framework import CompleteBacktestFramework
 from signal_reader import read_signal_file
 
 

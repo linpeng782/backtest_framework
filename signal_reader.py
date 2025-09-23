@@ -221,20 +221,6 @@ def get_stock_list_from_signal(file_path):
     return stock_list
 
 
-def get_signal_file_path(signal_filename, base_dir="/Users/didi/DATA/dnn_model/signal"):
-    """
-    获取信号文件的完整路径
-
-    Args:
-        signal_filename: 信号文件名
-        base_dir: 信号文件基础目录
-
-    Returns:
-        str: 信号文件的完整路径
-    """
-    return os.path.join(base_dir, signal_filename)
-
-
 # 向后兼容的函数
 def read_and_parse_signal_file(file_path):
     """
