@@ -579,17 +579,6 @@ def rolling_backtest(
         # 填入实际的资产数据
         portfolio_dates = history["total_account_asset"].index
         aligned_series.loc[portfolio_dates] = history["total_account_asset"]
-
-        # # 处理组合结束后的情况：保持最后一天的资产值不变
-        # if len(portfolio_dates) > 0:
-        #     last_date = portfolio_dates.max()
-        #     last_value = history["total_account_asset"].loc[last_date]
-
-        #     # 对于组合结束后的日期，保持最后资产值
-        #     future_dates = [d for d in all_dates if d > last_date]
-        #     if future_dates:
-        #         aligned_series.loc[future_dates] = last_value
-
         aligned_portfolios[portfolio_index] = aligned_series
 
     # 汇总所有组合的资产

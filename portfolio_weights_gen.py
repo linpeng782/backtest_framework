@@ -7,54 +7,14 @@ import pandas as pd
 import numpy as np
 import os
 import sys
-from rqdatac import *
-from rqfactor import *
-from rqfactor.extension import *
 
-init("13522652015", "123456")
-import rqdatac
 
 # 添加父目录到路径以导入因子工具包
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-
 # 导入信号文件读取模块
 from signal_reader import read_and_parse_signal_file
-
-
-# st过滤（风险警示标的默认不进行研究）
-def get_st_filter(stock_list, date_list):
-    """
-    :param stock_list: 股票池 -> list
-    :param date_list: 研究周期 -> list
-    :return st_filter: st过滤券池 -> unstack
-    """
-
-    # 当st时返回1，非st时返回0
-    st_filter = is_st_stock(stock_list, date_list[0], date_list[-1]).reindex(
-        columns=stock_list, index=date_list
-    )
-    st_filter = st_filter.shift(-1).ffill()
-
-    return st_filter
-
-
-# 停牌过滤 （无法交易）
-def get_suspended_filter(stock_list, date_list):
-    """
-    :param stock_list: 股票池 -> list
-    :param date_list: 研究周期 -> list
-    :return suspended_filter: 停牌过滤券池 -> unstack
-    """
-
-    # 当停牌时返回1，非停牌时返回0
-    suspended_filter = is_suspended(stock_list, date_list[0], date_list[-1]).reindex(
-        columns=stock_list, index=date_list
-    )
-    suspended_filter = suspended_filter.shift(-1).ffill()
-
-    return suspended_filter
-
+from factor_utils import get_st_filter, get_suspended_filter, get_limit_up_filter
 
 # 动态选股：确保每日选出rank_n只股票（考虑停牌过滤）
 def select_top_n_stocks(row, n):
