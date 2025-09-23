@@ -1,115 +1,145 @@
 # 量化回测框架 (Backtesting OOP)
 
-一个基于面向对象设计的量化回测框架，专门用于股票投资策略的回测分析。
-
-## 项目特点
-
-- **面向对象设计**：模块化架构，易于扩展和维护
-- **灵活的信号处理**：支持多种信号文件格式
-- **完整的回测功能**：包含滚动回测、性能分析等
-- **简洁的配置管理**：使用YAML配置文件，易于修改参数
-- **数据代码分离**：遵循最佳实践，数据存储在独立目录
-
 ## 项目结构
 
 ```
 backtesting_oop/
 ├── README.md                    # 项目说明文档
 ├── backtest_config.yaml         # 回测配置文件
-├── requirements.txt             # 依赖包列表
-├── __init__.py                  # 包初始化文件
-├── signal_reader.py             # 信号文件读取模块
+├── signal_reader.py             # 信号文件读取和解析模块
 ├── backtest_framework.py        # 回测框架核心模块
-├── backtest_rolling_flexible.py # 灵活滚动回测模块
-├── performance_analyzer.py      # 性能分析模块
-├── get_buy_signal.py           # 买入信号处理模块
-├── feval_backtest.py           # 回测执行脚本
-└── test_config.py              # 配置测试脚本
+├── rolling_backtest.py          # 12个月滚动持仓回测模块
+├── portfolio_weights_gen.py     # 投资组合权重生成模块
+├── performance_analyzer.py      # 性能分析和指标计算模块
+├── data_utils.py               # 数据处理工具（ST、停牌、涨停过滤）
+└── feval_backtest.py           # 简化版回测执行脚本
 ```
-
-## 安装依赖
-
-```bash
-# 激活虚拟环境
-conda activate peterdidi
-
-# 安装依赖包
-pip install -r requirements.txt
-```
-
-## 快速开始
 
 ### 1. 配置参数
 
 编辑 `backtest_config.yaml` 文件，设置您的回测参数：
 
 ```yaml
+# ==================== 基本参数 ====================
 # 信号文件名
-signal_file: "your_signal_file"
-
-# 信号目录
+signal_file: "pred5days_top2k"
+  
+# 信号目录(需要包含信号文件)
 data_dir: "/Users/didi/DATA/dnn_model/signal"
 
-# 回测结果保存目录
-save_dir: "/Users/didi/DATA/dnn_model/signal"
-
+# 回测过程中产生的vwap数据保存目录
+save_dir: "/Users/didi/DATA/dnn_model/bars"
+ 
+# ==================== 策略参数 ====================
 # 每日选股数量
 rank_n: 30
 
 # 组合数量（资金分割份数）
 portfolio_count: 5
 
-# 调仓频率
+# 调仓频率（天）
 rebalance_frequency: "daily"
 
 # 基准指数
 benchmark: "000852.XSHG"  # 中证1000
+
+# ==================== 输出设置 ====================
+# 是否保存详细结果到文件
+save_results: true
+
+# 回测结果保存目录
+output_dir: "backtest_results"
+
+# ==================== 显示设置 ====================
+# 是否显示详细日志
+verbose: true
+
+# 是否显示进度条
+show_progress: true
 ```
 
-### 2. 运行回测
+### 3. 查看结果
 
-```bash
-python feval_backtest.py
-```
+回测完成后，结果将保存在配置的输出目录中，包括：
+- 账户历史记录
+- 性能指标汇总
+- 投资组合权重变化
+- 可视化图表
+
+## 使用示例
+
+### 基本使用流程
+
+1. **准备信号文件**：将您的预测信号文件放在指定的数据目录中
+2. **修改配置**：根据您的需求调整`backtest_config.yaml`中的参数
+3. **执行回测**：运行`python feval_backtest.py`
+4. **分析结果**：查看生成的回测报告和图表
+
+### 自定义开发
+
+如果需要自定义回测逻辑，可以：
+- 修改`portfolio_weights_gen.py`中的选股逻辑
+- 调整`rolling_backtest.py`中的持仓管理策略
+- 扩展`performance_analyzer.py`中的分析指标
 
 ## 主要功能模块
 
 ### 信号处理 (signal_reader.py)
-- 支持多种信号文件格式
+- 支持多种信号文件格式（带排名/不带排名）
 - 自动检测文件格式并解析
 - 提供数据转换和验证功能
+- 自动解析信号文件的时间范围
 
 ### 回测框架 (backtest_framework.py)
 - 完整的回测流程管理
 - 支持多种调仓策略
 - 灵活的参数配置
+- 集成数据过滤和风险控制
+
+### 数据处理工具 (data_utils.py)
+- ST股票过滤（风险警示标的过滤）
+- 停牌股票过滤（无法交易标的过滤）
+- 涨停股票过滤（开盘无法买入标的过滤）
+- 集成RQData数据源接口
+
+### 滚动回测 (rolling_backtest.py)
+- 12个月滚动持仓回测策略
+- 精确的持仓计算和资金管理
+- 支持最小交易单位约束
+- 交易成本预留机制
+
+### 投资组合管理 (portfolio_weights_gen.py)
+- 动态选股逻辑（确保每日选出指定数量股票）
+- 投资组合权重计算
+- 信号处理和过滤集成
+- 支持多种权重分配策略
 
 ### 性能分析 (performance_analyzer.py)
 - 全面的回测结果分析
-- 风险指标计算
+- 风险指标计算（夏普比率、最大回撤等）
 - 可视化图表生成
-
-### 滚动回测 (backtest_rolling_flexible.py)
-- 支持滚动回测策略
-- 灵活的组合管理
-- 多种调仓频率支持
+- 基准对比分析
 
 ## 配置说明
 
 ### 基本参数
-- `signal_file`: 信号文件名
-- `data_dir`: 数据目录路径
-- `save_dir`: 结果保存目录
+- `signal_file`: 信号文件名（不含扩展名）
+- `data_dir`: 信号文件所在目录路径
+- `save_dir`: 回测过程中产生的vwap数据保存目录
 
 ### 策略参数
 - `rank_n`: 每日选股数量
 - `portfolio_count`: 组合数量（资金分割份数）
-- `rebalance_frequency`: 调仓频率（daily/weekly/monthly）
-- `benchmark`: 基准指数代码
+- `rebalance_frequency`: 调仓频率（daily为每日调仓）
+- `benchmark`: 基准指数代码（如000852.XSHG为中证1000）
 
 ### 输出设置
-- `save_results`: 是否保存结果到文件
-- `output_dir`: 输出目录名称
+- `save_results`: 是否保存详细结果到文件
+- `output_dir`: 回测结果保存目录名称
+
+### 显示设置
+- `verbose`: 是否显示详细日志
+- `show_progress`: 是否显示进度条
 
 ## 数据格式
 
@@ -124,36 +154,4 @@ python feval_backtest.py
 - 性能指标汇总 (CSV)
 - 投资组合权重 (CSV)
 
-## 开发指南
 
-### 环境要求
-- Python 3.7+
-- pandas, numpy, matplotlib等数据科学包
-- PyYAML用于配置文件解析
-
-### 代码规范
-- 所有注释和文档使用中文
-- 遵循数据代码分离原则
-- 优先使用向量化操作，避免循环
-
-## 贡献指南
-
-1. Fork 本仓库
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 打开 Pull Request
-
-## 许可证
-
-本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情
-
-## 联系方式
-
-如有问题或建议，请通过以下方式联系：
-- 创建 Issue
-- 发送邮件
-
----
-
-**注意**：运行任何脚本前需要先激活虚拟环境：`conda activate peterdidi`

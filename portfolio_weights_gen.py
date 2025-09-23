@@ -8,11 +8,7 @@ import numpy as np
 import os
 import sys
 
-
-# 导入信号文件读取模块
 from signal_reader import read_and_parse_signal_file
-
-# 导入本地的factor_utils模块（当前目录下）
 from data_utils import get_st_filter, get_suspended_filter, get_limit_up_filter
 
 

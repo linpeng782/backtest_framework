@@ -6,26 +6,9 @@
 
 import pandas as pd
 import numpy as np
-import statsmodels.api as sm
 from tqdm import *
-import os
-from joblib import Parallel, delayed
-import pickle
-from datetime import datetime
 from dateutil.relativedelta import relativedelta
-
-from rqdatac import *
-from rqfactor import *
-from rqfactor import Factor
-from rqfactor.extension import *
-
-init("13522652015", "123456")
-import rqdatac
-
-import seaborn as sns
-import matplotlib.pyplot as plt
-
-# 关闭通知
+from data_utils import *
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -334,13 +317,6 @@ def rolling_backtest(
     print("获取所有股票的后复权vwap数据")
     adjusted_prices = get_stock_vwap(bars_df, "post")
 
-    # # 获取所有股票的开盘价格数据（未复权）
-    # print("获取所有股票的开盘价格数据（未复权）")
-    # unadjusted_prices = get_stock_bars(bars_df, portfolio_weights, "none")
-    # # 获取所有股票的后复权价格数据
-    # print("获取所有股票的后复权价格数据")
-    # adjusted_prices = get_stock_bars(bars_df, portfolio_weights, "post")
-
     # 获取每只股票的最小交易单位（通常为100股）
     min_trade_units = pd.Series(
         dict([(stock, 100) for stock in portfolio_weights.columns.tolist()])
@@ -384,9 +360,6 @@ def rolling_backtest(
 
         # 统一转换为pd.Timestamp类型
         rebalance_date = pd.Timestamp(rebalance_date_raw)
-
-        # if rebalance_date == pd.Timestamp("2017-01-03"):
-        #     breakpoint()
 
         # 获取当前调仓日的目标权重
         target_weights = portfolio_weights.loc[rebalance_date].dropna()

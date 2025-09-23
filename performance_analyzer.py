@@ -21,14 +21,12 @@ import statsmodels.api as sm
 import os
 from datetime import datetime
 from typing import Dict, Any, Tuple, Optional
+from data_utils import *
 
 
 def get_benchmark(
     account_result: pd.DataFrame,
     benchmark_index: str = "000985.XSHG",
-    benchmark_type: str = "mcw",
-    stock_list: Optional[list] = None,
-    stock_mask: Optional[pd.DataFrame] = None,
 ) -> pd.Series:
     """
     获取基准指数数据
@@ -36,105 +34,33 @@ def get_benchmark(
     Args:
         account_result: 账户历史记录
         benchmark_index: 基准指数代码
-        benchmark_type: 基准类型，"mcw"为市场指数，其他为等权重指数
-        stock_list: 股票列表（用于等权重基准）
-        stock_mask: 股票掩码DataFrame（用于等权重基准）
 
     Returns:
         基准指数价格序列
     """
-    try:
-        from factor_utils import get_price
-        from rqdatac import get_previous_trading_date
 
-        # 获取开始日期前一个交易日
-        start_date = get_previous_trading_date(account_result.index.min(), 1).strftime(
-            "%Y-%m-%d"
-        )
-        end_date = account_result.index.max().strftime("%Y-%m-%d")
+    # 获取开始日期前一个交易日
+    start_date = get_previous_trading_date(account_result.index.min(), 1).strftime(
+        "%Y-%m-%d"
+    )
+    end_date = account_result.index.max().strftime("%Y-%m-%d")
 
-        if benchmark_type == "mcw":
-            # 市场指数基准
-            price_open = get_price(
-                [benchmark_index], start_date, end_date, fields=["open"]
-            ).open.unstack("order_book_id")
+    # 市场指数基准
+    price_open = get_price(
+        [benchmark_index], start_date, end_date, fields=["open"]
+    ).open.unstack("order_book_id")
 
-            # 提取基准指数价格序列
-            if isinstance(price_open.columns, pd.MultiIndex):
-                benchmark_series = price_open[benchmark_index]
-            else:
-                benchmark_series = price_open.iloc[:, 0]
-
-        else:
-            # 等权重指数基准
-            if stock_list is None:
-                print("警告：等权重基准需要股票列表，当前使用市场指数替代")
-                price_open = get_price(
-                    [benchmark_index], start_date, end_date, fields=["open"]
-                ).open.unstack("order_book_id")
-
-                if isinstance(price_open.columns, pd.MultiIndex):
-                    benchmark_series = price_open[benchmark_index]
-                else:
-                    benchmark_series = price_open.iloc[:, 0]
-            else:
-                # 使用股票列表构建等权重基准
-                price_open = get_price(
-                    stock_list, start_date, end_date, fields=["open"]
-                ).open.unstack("order_book_id")
-
-                if stock_mask is not None:
-                    # 应用股票掩码
-                    price_returns = (
-                        price_open.pct_change().mask(~stock_mask).mean(axis=1)
-                    )
-                else:
-                    # 等权重平均
-                    price_returns = price_open.pct_change().mean(axis=1)
-
-                # 计算累积收益
-                benchmark_series = (1 + price_returns).cumprod()
-                benchmark_series = benchmark_series.to_frame(benchmark_index).iloc[:, 0]
-
-        # 重新索引以匹配账户历史记录的日期
-        if not isinstance(benchmark_series.index, pd.DatetimeIndex):
-            benchmark_series.index = pd.to_datetime(benchmark_series.index)
-
-        benchmark_series = benchmark_series.reindex(
-            account_result.index, method="ffill"
-        )
-        benchmark_series.name = benchmark_index
-
-        return benchmark_series
-
-    except Exception as e:
-        print(f"获取基准数据失败: {e}")
-        print("使用模拟基准数据...")
-        # 如果获取失败，返回模拟基准数据
-        np.random.seed(42)
-        dates = account_result.index
-        returns = np.random.normal(0.0005, 0.015, len(dates))
-        benchmark_series = (
-            pd.Series(1000, index=dates)
-            * (1 + pd.Series(returns, index=dates)).cumprod()
-        )
-        benchmark_series.name = benchmark_index
-        return benchmark_series
+    return price_open
 
 
 def get_performance_analysis(
     account_result: pd.DataFrame,
     rf: float = 0.03,
     benchmark_index: str = "000852.XSHG",
-    benchmark_type: str = "mcw",
-    stock_list: Optional[list] = None,
-    stock_mask: Optional[pd.DataFrame] = None,
-    portfolio_weights: Optional[pd.DataFrame] = None,
-    portfolio_count: Optional[int] = None,
-    factor_name: Optional[str] = None,
-    rank_n: Optional[int] = None,
     save_path: Optional[str] = None,
     show_plot: bool = False,
+    portfolio_count: Optional[int] = None,
+    rank_n: Optional[int] = None,
 ) -> Tuple[pd.DataFrame, Dict[str, Any]]:
     """
     综合性能分析函数
@@ -143,16 +69,10 @@ def get_performance_analysis(
         account_result: 账户历史记录，包含 total_account_asset 列
         rf: 无风险利率，默认 3%
         benchmark_index: 基准指数代码
-        benchmark_type: 基准类型，"mcw"为市场指数，其他为等权重指数
-        stock_list: 股票列表（用于等权重基准）
-        stock_mask: 股票掩码DataFrame（用于等权重基准）
-        portfolio_weights: 投资组合权重（可选，用于生成文件名）
-        portfolio_count: 组合数量（可选，用于生成文件名）
-        factor_name: 因子名称（可选，用于生成文件名）
-        rank_n: 排名参数（可选，用于生成文件名）
         save_path: 图表保存路径（可选）
         show_plot: 是否显示图表
-
+        portfolio_count: 组合数量（资金分割份数）
+        rank_n: 每日选股数量
     Returns:
         Tuple[pd.DataFrame, Dict]: (累计收益率数据, 性能指标字典)
     """
@@ -161,9 +81,7 @@ def get_performance_analysis(
     performance = pd.concat(
         [
             account_result["total_account_asset"].to_frame("strategy"),
-            get_benchmark(
-                account_result, benchmark_index, benchmark_type, stock_list, stock_mask
-            ),
+            get_benchmark(account_result, benchmark_index),
         ],
         axis=1,
     )
@@ -341,12 +259,9 @@ def get_performance_analysis(
         _generate_performance_charts(
             performance_cumnet,
             result,
-            performance_annual_performance,
-            factor_name,
             portfolio_count,
             rank_n,
             benchmark_index,
-            portfolio_weights,
             save_path,
             show_plot,
         )
@@ -359,12 +274,9 @@ def get_performance_analysis(
 def _generate_performance_charts(
     performance_cumnet: pd.DataFrame,
     result: Dict[str, Any],
-    performance_annual_performance: pd.DataFrame,
-    factor_name: Optional[str],
     portfolio_count: Optional[int],
     rank_n: Optional[int],
     benchmark_index: str,
-    portfolio_weights: Optional[pd.DataFrame],
     save_path: Optional[str],
     show_plot: bool,
 ) -> None:
@@ -376,26 +288,15 @@ def _generate_performance_charts(
     rcParams["axes.unicode_minus"] = False
 
     # 生成文件名和路径
-    if factor_name and portfolio_weights is not None:
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M")
-        start_date = portfolio_weights.index[0].strftime("%Y-%m-%d")
-        end_date = portfolio_weights.index[-1].strftime("%Y-%m-%d")
+    timestamp = datetime.now().strftime("%Y%m%d%H%M")
+    start_date = performance_cumnet.index[0].strftime("%Y-%m-%d")
+    end_date = performance_cumnet.index[-1].strftime("%Y-%m-%d")
 
-        # 分别为收益曲线和指标表格创建独立目录
-        # 使用相对路径，在当前项目目录下创建输出目录
-        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        charts_dir = os.path.join(project_root, "outputs", "performance_charts")
-        tables_dir = os.path.join(project_root, "outputs", "metrics_tables")
-        os.makedirs(charts_dir, exist_ok=True)
-        os.makedirs(tables_dir, exist_ok=True)
-
-        chart_filename = f"rolling_{portfolio_count}_{factor_name}_{rank_n}_{benchmark_index}_{start_date}_{end_date}_{timestamp}_chart.png"
-        table_filename = f"rolling_{portfolio_count}_{factor_name}_{rank_n}_{benchmark_index}_{start_date}_{end_date}_{timestamp}_table.png"
-        chart_path = os.path.join(charts_dir, chart_filename)
-        table_path = os.path.join(tables_dir, table_filename)
-    else:
-        chart_path = save_path
-        table_path = save_path
+    # 直接在save_dir下生成文件
+    chart_filename = f"rolling_{portfolio_count}_{rank_n}_{benchmark_index}_{start_date}_{end_date}_{timestamp}_chart.png"
+    table_filename = f"rolling_{portfolio_count}_{rank_n}_{benchmark_index}_{start_date}_{end_date}_{timestamp}_table.png"
+    chart_path = os.path.join(save_path, chart_filename)
+    table_path = os.path.join(save_path, table_filename)
 
     strategy_name, benchmark_name, alpha_name = performance_cumnet.columns.tolist()
 
@@ -434,9 +335,7 @@ def _generate_performance_charts(
     ax2.tick_params(axis="y", labelcolor="#2ca02c")
 
     # 设置主图样式
-    title = (
-        f"{factor_name}_{rank_n}_收益曲线分析" if factor_name else "策略收益曲线分析"
-    )
+    title = f"rolling_{portfolio_count}_{rank_n}_{start_date}_{end_date}_{timestamp}_收益曲线分析"
     ax1.set_title(title, fontsize=18, fontweight="bold", pad=20)
     ax1.set_xlabel("日期", fontsize=12)
     ax1.set_ylabel("累积收益", fontsize=12)
@@ -501,7 +400,7 @@ def _generate_performance_charts(
         table[(i, 1)].set_text_props(weight="bold")
 
     # 添加标题
-    title = f"{factor_name}_{rank_n}_绩效指标表" if factor_name else "策略绩效指标表"
+    title = f"rolling_{portfolio_count}_{rank_n}_{start_date}_{end_date}_{timestamp}_绩效指标表"
     ax3.text(
         0.5,
         0.95,

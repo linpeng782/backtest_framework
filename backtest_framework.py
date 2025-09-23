@@ -17,16 +17,7 @@ from portfolio_weights_gen import generate_portfolio_weights
 from rolling_backtest import rolling_backtest
 from signal_reader import get_stock_list_from_signal
 from performance_analyzer import get_performance_analysis
-
-# 导入因子工具包（从父目录）
-parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, parent_dir)
-try:
-    from factor_utils import get_price, get_vwap
-finally:
-    # 确保在导入后移除路径，避免影响其他模块的导入
-    if parent_dir in sys.path:
-        sys.path.remove(parent_dir)
+from data_utils import get_price, get_vwap
 
 
 class BacktestFramework:
@@ -190,7 +181,11 @@ class BacktestFramework:
             # 步骤4: 策略回测结果
             print("\n=== 步骤4: 策略回测结果 ===")
             get_performance_analysis(
-                account_result=account_result, benchmark_index=self.benchmark
+                account_result=account_result,
+                benchmark_index=self.benchmark,
+                portfolio_count=self.portfolio_count,
+                rank_n=self.rank_n,
+                save_path=self.save_dir,
             )
 
         except Exception as e:

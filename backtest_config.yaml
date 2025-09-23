@@ -3,9 +3,9 @@
 
 # ==================== 基本参数 ====================
 # 信号文件名
-signal_file: "20200102_20250825_signal"
+signal_file: "pred5days_top2k"
   
-# 信号目录
+# 信号目录(需要包含信号文件)
 data_dir: "/Users/didi/DATA/dnn_model/signal"
 
 # 回测过程中产生的vwap数据保存目录
