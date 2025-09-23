@@ -1,0 +1,39 @@
+# 回测配置文件
+# 用户可以直接修改这个文件中的参数来调整回测设置
+
+# ==================== 基本参数 ====================
+# 信号文件名
+signal_file: "20200102_20250825_signal"
+  
+# 信号目录
+data_dir: "/Users/didi/DATA/dnn_model/signal"
+
+# 回测结果保存目录
+save_dir: "/Users/didi/DATA/dnn_model/signal"
+ 
+# ==================== 策略参数 ====================
+# 每日选股数量
+rank_n: 30
+
+# 组合数量（资金分割份数）
+portfolio_count: 5
+
+# 调仓频率（天）
+rebalance_frequency: "daily"
+
+# 基准指数
+benchmark: "000852.XSHG"  # 中证1000
+
+# ==================== 输出设置 ====================
+# 是否保存详细结果到文件
+save_results: true
+
+# 回测结果保存目录
+output_dir: "backtest_results"
+
+# ==================== 显示设置 ====================
+# 是否显示详细日志
+verbose: true
+
+# 是否显示进度条
+show_progress: true
