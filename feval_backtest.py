@@ -6,11 +6,12 @@
 import sys
 import os
 import yaml
+from datetime import datetime
 
 # 添加当前目录到路径
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from backtest_framework import CompleteBacktestFramework
+from backtest_framework import BacktestFramework
 from signal_reader import read_signal_file
 
 
@@ -42,7 +43,7 @@ def load_config_and_run(config_file="backtest_config.yaml"):
         raise
 
     # 3. 创建回测框架 - 使用自动解析的日期
-    framework = CompleteBacktestFramework(
+    framework = BacktestFramework(
         signal_file=config["signal_file"],
         start_date=start_date,
         end_date=end_date,
@@ -55,22 +56,7 @@ def load_config_and_run(config_file="backtest_config.yaml"):
 
     # 4. 执行回测
     print(f"\n开始执行回测...")
-    results = framework.run_backtest()
-
-    # 5. 显示结果
-    performance = results["performance_metrics"]
-
-    print("\n" + "=" * 50)
-    print("回测结果汇总")
-    print("=" * 50)
-    print(f"总收益率:   {performance['总收益率']:>10.2%}")
-    print(f"年化收益率: {performance['年化收益率']:>10.2%}")
-    print(f"年化波动率: {performance['年化波动率']:>10.2%}")
-    print(f"夏普比率:   {performance['夏普比率']:>10.3f}")
-    print(f"最大回撤:   {performance['最大回撤']:>10.2%}")
-    print(f"胜率:       {performance['胜率']:>10.2%}")
-    print(f"交易天数:   {performance['交易天数']:>10}")
-    print(f"最终资产:   {performance['最终资产']:>10,.0f} 元")
+    framework.run_backtest()
 
     # 6. 保存结果（如果配置了保存）
     if config["save_results"]:

@@ -118,7 +118,7 @@ def read_signal_file(file_path):
     if format_type is None:
         return None
 
-    print(f"检测到文件格式: {format_type}")
+    print(f"检测到信号格式: {format_type}")
 
     # 读取文件数据
     data = []
@@ -158,16 +158,6 @@ def read_signal_file(file_path):
     # 添加交易所后缀到股票代码
     df["股票代码"] = df["股票代码"].apply(add_exchange_suffix)
 
-    # 统计信息
-    date_range = f"{df['日期'].min().date()} 到 {df['日期'].max().date()}"
-    unique_stocks = df["股票代码"].nunique()
-    unique_dates = df["日期"].nunique()
-
-    print(f"数据统计:")
-    print(f"  时间范围: {date_range}")
-    print(f"  唯一股票数: {unique_stocks}")
-    print(f"  交易日数: {unique_dates}")
-
     return df
 
 
@@ -195,10 +185,6 @@ def convert_to_pivot_table(signal_df):
         aggfunc="first",  # 如果有重复，取第一个值
     )
 
-    print(f"透视表形状: {pivot_df.shape}")
-    print(f"日期范围: {pivot_df.index.min().date()} 到 {pivot_df.index.max().date()}")
-    print(f"股票数量: {len(pivot_df.columns)}")
-
     return pivot_df
 
 
@@ -215,6 +201,16 @@ def get_stock_list_from_signal(file_path):
     signal_df = read_signal_file(file_path)
     if signal_df is None or signal_df.empty:
         return []
+
+    # 统计信息
+    date_range = f"{signal_df['日期'].min().date()} 到 {signal_df['日期'].max().date()}"
+    unique_stocks = signal_df["股票代码"].nunique()
+    unique_dates = signal_df["日期"].nunique()
+
+    print(f"数据统计:")
+    print(f"  时间范围: {date_range}")
+    print(f"  唯一股票数: {unique_stocks}")
+    print(f"  交易日数: {unique_dates}")
 
     stock_list = sorted(signal_df["股票代码"].unique().tolist())
 
@@ -234,32 +230,3 @@ def read_and_parse_signal_file(file_path):
     """
     signal_df = read_signal_file(file_path)
     return convert_to_pivot_table(signal_df)
-
-
-if __name__ == "__main__":
-    # 测试信号文件读取
-    test_signal_file = "/Users/didi/DATA/dnn_model/signal/20200102_20250825_signal"
-
-    if os.path.exists(test_signal_file):
-        print("=" * 50)
-        print("测试信号文件读取功能")
-        print("=" * 50)
-
-        # 1. 读取原始信号数据
-        signal_df = read_signal_file(test_signal_file)
-        print(f"原始数据形状: {signal_df.shape}")
-        print(f"前5行数据:")
-        print(signal_df.head())
-
-        # 2. 转换为透视表
-        pivot_df = convert_to_pivot_table(signal_df)
-        print(f"\\n透视表形状: {pivot_df.shape}")
-        print("前5行5列数据:")
-        print(pivot_df.iloc[:5, :5])
-
-        # 3. 获取股票列表
-        stock_list = get_stock_list_from_signal(test_signal_file)
-        print(f"\\n股票列表示例: {stock_list[:5]}")
-
-    else:
-        print(f"测试文件不存在: {test_signal_file}")

@@ -13,9 +13,9 @@ from tqdm import tqdm
 
 
 # 当作为脚本直接执行时的导入方式
-from get_buy_signal import get_buy_signal
+from portfolio_weights_gen import generate_portfolio_weights
 from rolling_backtest import rolling_backtest
-from signal_reader import get_stock_list_from_signal, read_signal_file
+from signal_reader import get_stock_list_from_signal
 from performance_analyzer import get_performance_analysis
 
 # 添加父目录到路径以导入回测模块
@@ -25,7 +25,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from factor_utils import get_price, get_vwap
 
 
-class CompleteBacktestFramework:
+class BacktestFramework:
     """
     完整的端到端量化回测框架
 
@@ -46,11 +46,6 @@ class CompleteBacktestFramework:
         rank_n: int = 30,
         rebalance_frequency: int = 5,
         portfolio_count: int = 5,
-        initial_capital: float = 100000000,
-        stamp_tax_rate: float = 0.0005,
-        transfer_fee_rate: float = 0.0001,
-        commission_rate: float = 0.0002,
-        min_transaction_fee: float = 5,
         data_root: str = "/Users/didi/DATA/dnn_model",
         benchmark: str = "000852.XSHG",
     ):
@@ -79,17 +74,11 @@ class CompleteBacktestFramework:
         self.rank_n = rank_n
         self.rebalance_frequency = rebalance_frequency
         self.portfolio_count = portfolio_count
-        self.initial_capital = initial_capital
-        self.stamp_tax_rate = stamp_tax_rate
-        self.transfer_fee_rate = transfer_fee_rate
-        self.commission_rate = commission_rate
-        self.min_transaction_fee = min_transaction_fee
         self.data_root = data_root
         self.benchmark = benchmark
 
         print(f"初始化回测框架 - 信号文件: {signal_file}")
         print(f"回测时间范围: {start_date} 到 {end_date}")
-        print(f"初始资金: {initial_capital:,.0f} 元")
 
     # ==================== 数据获取模块 ====================
 
@@ -164,42 +153,6 @@ class CompleteBacktestFramework:
                 print("跳过VWAP数据获取，返回None")
                 return None
 
-    def save_results(self, results: Dict[str, Any]) -> None:
-        """
-        步骤5: 保存回测结果（可选）
-
-        Args:
-            results: 回测结果字典
-        """
-        print("\n=== 步骤5: 保存回测结果 ===")
-
-        # 创建输出目录
-        parent_dir = os.path.dirname(self.data_root)
-        output_dir = os.path.join(parent_dir, "backtest_results")
-        os.makedirs(output_dir, exist_ok=True)
-
-        # 生成文件名
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        result_filename = f"backtest_result_{self.signal_file}_{timestamp}"
-
-        # 保存账户历史记录
-        account_result = results["account_result"]
-        account_csv_path = os.path.join(output_dir, f"{result_filename}_account.csv")
-        account_result.to_csv(account_csv_path)
-        print(f"账户历史记录已保存: {account_csv_path}")
-
-        # 保存性能指标
-        performance_metrics = results["performance_metrics"]
-        metrics_csv_path = os.path.join(output_dir, f"{result_filename}_metrics.csv")
-        pd.DataFrame([performance_metrics]).to_csv(metrics_csv_path, index=False)
-        print(f"性能指标已保存: {metrics_csv_path}")
-
-        # 保存投资组合权重
-        portfolio_weights = results["portfolio_weights"]
-        weights_csv_path = os.path.join(output_dir, f"{result_filename}_weights.csv")
-        portfolio_weights.to_csv(weights_csv_path)
-        print(f"投资组合权重已保存: {weights_csv_path}")
-
     # ==================== 主执行流程 ====================
 
     def run_backtest(self) -> Dict[str, Any]:
@@ -214,17 +167,18 @@ class CompleteBacktestFramework:
         print("=" * 60)
 
         try:
-            # 步骤1: 数据获取
+            # 步骤1: 获取vwap数据
             signal_path = os.path.join(self.data_root, self.signal_file)
 
             stock_list = get_stock_list_from_signal(signal_path)
-
-            # 获取VWAP数据
             vwap_df = self.get_vwap_data(stock_list)
 
             # 步骤2: 生成投资组合权重
-            portfolio_weights = get_buy_signal(signal_path, rank_n=self.rank_n)
+            portfolio_weights = generate_portfolio_weights(
+                signal_path, rank_n=self.rank_n
+            )
 
+            # 步骤3: 执行滚动回测
             account_result = rolling_backtest(
                 portfolio_weights=portfolio_weights,
                 bars_df=vwap_df,
@@ -234,73 +188,11 @@ class CompleteBacktestFramework:
 
             # 步骤4: 性能分析 - 直接使用独立的性能分析模块
             print("\n=== 步骤4: 分析回测性能 ===")
-            print("使用独立的性能分析模块计算性能指标...")
 
             # 调用独立的性能分析函数
             performance_cumnet, result = get_performance_analysis(
                 account_result=account_result, benchmark_index=self.benchmark
             )
-
-            # 转换结果格式以保持一致性
-            performance_metrics = {
-                "总收益率": result["策略累计收益"],
-                "年化收益率": result["策略年化收益"],
-                "年化波动率": result["波动率"],
-                "夏普比率": result["夏普比率"],
-                "最大回撤": result["最大回撤"],
-                "胜率": result["日胜率"],
-                "交易天数": len(account_result) - 1,
-                "最终资产": account_result["total_account_asset"].iloc[-1],
-                # 添加完整的性能指标
-                "基准累计收益": result["基准累计收益"],
-                "基准年化收益": result["基准年化收益"],
-                "阿尔法": result["阿尔法"],
-                "贝塔": result["贝塔"],
-                "超额累计收益": result["超额累计收益"],
-                "超额年化收益": result["超额年化收益"],
-                "信息比率": result["信息比率"],
-                "索提诺比率": result["索提诺比率"],
-            }
-
-            print("\n性能指标汇总:")
-            for key, value in performance_metrics.items():
-                if key in [
-                    "总收益率",
-                    "年化收益率",
-                    "年化波动率",
-                    "最大回撤",
-                    "胜率",
-                    "基准累计收益",
-                    "基准年化收益",
-                    "超额累计收益",
-                    "超额年化收益",
-                ]:
-                    print(f"  {key}: {value:.2%}")
-                elif key in ["夏普比率", "阿尔法", "贝塔", "信息比率", "索提诺比率"]:
-                    print(f"  {key}: {value:.3f}")
-                elif key == "最终资产":
-                    print(f"  {key}: {value:,.0f} 元")
-                else:
-                    print(f"  {key}: {value}")
-
-            print("\n" + "=" * 60)
-            print("回测流程完成！")
-            print("=" * 60)
-
-            # 返回所有结果
-            results = {
-                "stock_list": stock_list,
-                "portfolio_weights": portfolio_weights,
-                "account_result": account_result,
-                "performance_metrics": performance_metrics,
-                "performance_cumnet": performance_cumnet,
-                "vwap_df": vwap_df,
-            }
-
-            # 可选：保存结果
-            # self.save_results(results)
-
-            return results
 
         except Exception as e:
             print(f"\n回测过程中发生错误: {str(e)}")
