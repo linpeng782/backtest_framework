@@ -9,7 +9,7 @@ signal_file: "pred5days_top2k"
 data_dir: "/Users/didi/DATA/dnn_model/signal"
 
 # 回测过程中产生的vwap数据保存目录
-save_dir: "/Users/didi/DATA/dnn_model/bars"
+cache_dir: "/Users/didi/DATA/dnn_model/cache"
  
 # ==================== 策略参数 ====================
 # 每日选股数量

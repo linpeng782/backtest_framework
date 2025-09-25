@@ -9,7 +9,12 @@ import os
 import sys
 
 from signal_reader import read_and_parse_signal_file
-from data_utils import get_st_filter, get_suspended_filter, get_limit_up_filter
+from data_utils import (
+    get_st_filter,
+    get_suspended_filter,
+    get_limit_up_filter,
+    get_new_stock_filter,
+)
 
 
 # 动态选股：确保每日选出rank_n只股票（考虑停牌过滤）
@@ -39,30 +44,34 @@ def select_top_n_stocks(row, n):
     return result
 
 
-def apply_filters_and_select_stocks(pivot_df, rank_n):
+def apply_filters_and_select_stocks(pivot_df, cache_dir, rank_n):
     """
     应用过滤器并进行股票选择
 
     Args:
         pivot_df: 透视表格式的信号数据
         rank_n: 每日选股数量
+        cache_dir: 缓存目录
 
     Returns:
         DataFrame: 经过过滤和选择的投资组合权重
     """
-    date_list = pivot_df.index.tolist()
-    stock_list = pivot_df.columns.tolist()
+    # date_list = pivot_df.index.tolist()
+    # stock_list = pivot_df.columns.tolist()
 
     # 1. 获取ST过滤、停牌过滤和涨停过滤
-    print("过滤：ST、停牌、开盘涨停")
-    st_filter = get_st_filter(stock_list, date_list)
-    suspended_filter = get_suspended_filter(stock_list, date_list)
-    limit_up_filter = get_limit_up_filter(stock_list, date_list)
+    print("过滤：新股、ST、停牌、开盘涨停")
 
-    # 应用过滤器
-    filtered_pivot = (
-        pivot_df.mask(suspended_filter).mask(st_filter).mask(limit_up_filter)
-    )
+    # st_filter = get_st_filter(stock_list, date_list)
+    # suspended_filter = get_suspended_filter(stock_list, date_list)
+    # limit_up_filter = get_limit_up_filter(stock_list, date_list)
+    # filtered_pivot = (
+    #     pivot_df.mask(suspended_filter).mask(st_filter).mask(limit_up_filter)
+    # )
+
+    combo_mask = pd.read_csv(os.path.join(cache_dir, "combo_mask.csv"), index_col=[0])
+    combo_mask.index = pd.to_datetime(combo_mask.index)
+    filtered_pivot = pivot_df.mask(~combo_mask)
 
     # 2. 对每一行（每个交易日）应用选股逻辑
     print(f"开始动态选股，目标每日选出{rank_n}只股票...")
@@ -85,7 +94,7 @@ def apply_filters_and_select_stocks(pivot_df, rank_n):
     return portfolio_weights
 
 
-def generate_portfolio_weights(file_path, rank_n=30):
+def generate_portfolio_weights(file_path, cache_dir, rank_n=30):
     """
     从信号文件生成投资组合权重
 
@@ -110,7 +119,7 @@ def generate_portfolio_weights(file_path, rank_n=30):
     print(f"时间范围: {pivot_df.index.min().date()} 到 {pivot_df.index.max().date()}")
 
     # 2. 应用过滤器并选择股票
-    portfolio_weights = apply_filters_and_select_stocks(pivot_df, rank_n)
+    portfolio_weights = apply_filters_and_select_stocks(pivot_df, cache_dir, rank_n)
 
     if portfolio_weights is None or portfolio_weights.empty:
         print("错误：无法生成投资组合权重")

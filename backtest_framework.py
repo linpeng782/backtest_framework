@@ -42,7 +42,7 @@ class BacktestFramework:
         rebalance_frequency: int = 5,
         portfolio_count: int = 5,
         data_dir: str = None,  # 数据目录
-        save_dir: str = None,  # 保存数据的目录
+        cache_dir: str = None,  # 保存数据的目录
         benchmark: str = "000852.XSHG",
     ):
         """
@@ -67,7 +67,7 @@ class BacktestFramework:
         self.rebalance_frequency = rebalance_frequency
         self.portfolio_count = portfolio_count
         self.data_dir = data_dir
-        self.save_dir = save_dir
+        self.cache_dir = cache_dir
         self.benchmark = benchmark
 
         print(f"初始化回测框架 - 信号文件: {signal_file}")
@@ -88,8 +88,8 @@ class BacktestFramework:
 
         # 首先尝试从文件加载现有数据
         vwap_filename = f"{self.end_date.replace('-', '')}_vwap_df.csv"
-        # 使用配置文件中的save_dir作为VWAP数据保存路径
-        vwap_path = os.path.join(self.save_dir, vwap_filename)
+        # 使用配置文件中的cache_dir作为VWAP数据保存路径
+        vwap_path = os.path.join(self.cache_dir, vwap_filename)
 
         if os.path.exists(vwap_path):
             print(f"从文件加载VWAP数据: {vwap_path}")
@@ -166,7 +166,7 @@ class BacktestFramework:
             # 步骤2: 生成投资组合权重
             print("\n=== 步骤2: 生成投资组合权重 ===")
             portfolio_weights = generate_portfolio_weights(
-                signal_path, rank_n=self.rank_n
+                signal_path, rank_n=self.rank_n, cache_dir=self.cache_dir
             )
 
             # 步骤3: 执行滚动回测
@@ -185,7 +185,6 @@ class BacktestFramework:
                 benchmark_index=self.benchmark,
                 portfolio_count=self.portfolio_count,
                 rank_n=self.rank_n,
-                save_path=self.save_dir,
             )
 
         except Exception as e:

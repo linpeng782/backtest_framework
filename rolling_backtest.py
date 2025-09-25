@@ -374,7 +374,7 @@ def rolling_backtest(
         # 检查组合状态和到期情况
         if current_portfolio["is_active"]:
             # 组合到期，进行调仓
-            print(f"组合{portfolio_index}号到期调仓，调仓日期：{rebalance_date}")
+            # print(f"组合{portfolio_index}号到期调仓，调仓日期：{rebalance_date}")
 
             # 取最后一个时间段的最后一天的值
             last_period_records = portfolio_histories[portfolio_index][

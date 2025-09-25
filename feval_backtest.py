@@ -6,6 +6,7 @@
 import sys
 import os
 import yaml
+import time
 
 # 添加当前目录到路径
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -50,14 +51,14 @@ def load_config_and_run(config_file="backtest_config.yaml"):
         rebalance_frequency=config["rebalance_frequency"],
         portfolio_count=config["portfolio_count"],
         data_dir=config["data_dir"],
-        save_dir=config["save_dir"],
+        cache_dir=config["cache_dir"],
         benchmark=config["benchmark"],
     )
 
     # 4. 执行回测
     print(f"\n开始执行回测...")
-    framework.run_backtest()
 
+    framework.run_backtest()
     print(f"\n回测完成！")
     print("=" * 60)
 
