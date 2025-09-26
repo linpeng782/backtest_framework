@@ -3,7 +3,7 @@
 
 # ==================== 基本参数 ====================
 # 信号文件名
-signal_file: "pred5days_2"
+signal_file: "pred5days_top2k"
   
 # 信号目录(需要包含信号文件)
 data_dir: "/Users/didi/DATA/dnn_model/signal"

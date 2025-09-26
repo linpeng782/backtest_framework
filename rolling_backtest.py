@@ -266,8 +266,8 @@ def rolling_backtest(
         # 统一转换为pd.Timestamp类型
         rebalance_date = pd.Timestamp(rebalance_date_raw)
 
-        if rebalance_date == pd.Timestamp("2025-08-21"):
-            breakpoint()
+        # if rebalance_date == pd.Timestamp("2025-08-21"):
+        #     breakpoint()
 
         # 获取当前调仓日的目标权重、目标股票、未复权价格
         target_weights = portfolio_weights.loc[rebalance_date].dropna()

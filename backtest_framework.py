@@ -18,6 +18,7 @@ from rolling_backtest import rolling_backtest
 from signal_reader import get_stock_list_from_signal
 from performance_analyzer import get_performance_analysis
 from data_utils import get_price, get_vwap
+from data_coverage_checker import check_data_coverage_for_signal
 
 
 class BacktestFramework:
@@ -98,19 +99,25 @@ class BacktestFramework:
         print("=" * 60)
 
         try:
-            # 步骤1: 获取vwap数据
-            print("\n=== 步骤1: 获取vwap数据 ===")
+            # 步骤0: 数据覆盖检查
+            print("\n=== 步骤0: 数据覆盖检查 ===")
             signal_path = os.path.join(self.data_dir, self.signal_file)
+
+            # 步骤1：检查数据覆盖情况（如果有缺失会直接抛出异常停止程序）
+            check_data_coverage_for_signal(signal_path, self.cache_dir)
+
+            # 步骤2：获取vwap数据
+            print("\n=== 步骤2: 获取vwap数据 ===")
             vwap_df = self.get_vwap_data()
 
-            # 步骤2: 生成投资组合权重
-            print("\n=== 步骤2: 生成投资组合权重 ===")
+            # 步骤3：生成投资组合权重
+            print("\n=== 步骤3: 生成投资组合权重 ===")
             portfolio_weights = generate_portfolio_weights(
                 signal_path, rank_n=self.rank_n, cache_dir=self.cache_dir
             )
 
-            # 步骤3: 执行滚动回测
-            print("\n=== 步骤3: 执行滚动回测 ===")
+            # 步骤4：执行滚动回测
+            print("\n=== 步骤4: 执行滚动回测 ===")
             account_result = rolling_backtest(
                 portfolio_weights=portfolio_weights,
                 bars_df=vwap_df,
@@ -118,8 +125,8 @@ class BacktestFramework:
                 rebalance_frequency=self.rebalance_frequency,
             )
 
-            # 步骤4: 策略回测结果
-            print("\n=== 步骤4: 策略回测结果 ===")
+            # 步骤5：策略回测结果
+            print("\n=== 步骤5: 策略回测结果 ===")
             get_performance_analysis(
                 account_result=account_result,
                 benchmark_index=self.benchmark,
