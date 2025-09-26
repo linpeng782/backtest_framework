@@ -52,12 +52,10 @@ def load_config_and_run(config_file="backtest_config.yaml"):
         portfolio_count=config["portfolio_count"],
         data_dir=config["data_dir"],
         cache_dir=config["cache_dir"],
-        benchmark=config["benchmark"],
     )
 
     # 4. 执行回测
     print(f"\n开始执行回测...")
-
 
     framework.run_backtest()
     print(f"\n回测完成！")

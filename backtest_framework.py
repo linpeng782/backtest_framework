@@ -8,16 +8,11 @@ import numpy as np
 import os
 import sys
 from typing import Dict, Any, Tuple, Optional, List
-from datetime import datetime
-from tqdm import tqdm
-
-
-# 当作为脚本直接执行时的导入方式
+from data_utils import *
+from performance_analyzer import get_performance_analysis
 from portfolio_weights_gen import generate_portfolio_weights
 from rolling_backtest import rolling_backtest
 from signal_reader import get_stock_list_from_signal
-from performance_analyzer import get_performance_analysis
-from data_utils import get_price, get_vwap
 from data_coverage_checker import check_data_coverage_for_signal
 
 
@@ -44,7 +39,6 @@ class BacktestFramework:
         portfolio_count: int = 5,
         data_dir: str = None,  # 数据目录
         cache_dir: str = None,  # 保存数据的目录
-        benchmark: str = "000852.XSHG",
     ):
         """
         初始化回测框架
@@ -69,7 +63,6 @@ class BacktestFramework:
         self.portfolio_count = portfolio_count
         self.data_dir = data_dir
         self.cache_dir = cache_dir
-        self.benchmark = benchmark
 
         print(f"初始化回测框架 - 信号文件: {signal_file}")
         print(f"回测时间范围: {start_date} 到 {end_date}")
@@ -85,6 +78,20 @@ class BacktestFramework:
         vwap_df = vwap_df.set_index(["order_book_id", "datetime"])
         return vwap_df
 
+    def get_trading_days(self) -> pd.DataFrame:
+        filename = "trading_days.csv"
+        trading_days = pd.read_csv(
+            os.path.join(self.cache_dir, filename), index_col=[0]
+        )
+        return trading_days
+
+    def get_benchmark(self) -> pd.DataFrame:
+        filename = "benchmark.csv"
+        benchmark = pd.read_csv(os.path.join(self.cache_dir, filename))
+        benchmark["datetime"] = pd.to_datetime(benchmark["datetime"])
+        benchmark = benchmark.set_index(["datetime"])
+        return benchmark
+
     # ==================== 主执行流程 ====================
 
     def run_backtest(self) -> Dict[str, Any]:
@@ -99,16 +106,21 @@ class BacktestFramework:
         print("=" * 60)
 
         try:
-            # 步骤0: 数据覆盖检查
-            print("\n=== 步骤0: 数据覆盖检查 ===")
+            # 步骤1：数据覆盖检查
+            print("\n=== 步骤1: 数据覆盖检查 ===")
             signal_path = os.path.join(self.data_dir, self.signal_file)
 
-            # 步骤1：检查数据覆盖情况（如果有缺失会直接抛出异常停止程序）
+            # 检查数据覆盖情况（如果有缺失会直接抛出异常停止程序）
             check_data_coverage_for_signal(signal_path, self.cache_dir)
 
-            # 步骤2：获取vwap数据
+            # 步骤2：获取vwap数据、交易日数据
             print("\n=== 步骤2: 获取vwap数据 ===")
             vwap_df = self.get_vwap_data()
+            trading_days = self.get_trading_days()
+            benchmark = self.get_benchmark()
+
+            # 交易日历数据已准备完成
+            print(f"交易日历数据加载完成，包含 {len(trading_days)} 个交易日")
 
             # 步骤3：生成投资组合权重
             print("\n=== 步骤3: 生成投资组合权重 ===")
@@ -121,6 +133,7 @@ class BacktestFramework:
             account_result = rolling_backtest(
                 portfolio_weights=portfolio_weights,
                 bars_df=vwap_df,
+                trading_days_df=trading_days,
                 portfolio_count=self.portfolio_count,
                 rebalance_frequency=self.rebalance_frequency,
             )
@@ -129,7 +142,8 @@ class BacktestFramework:
             print("\n=== 步骤5: 策略回测结果 ===")
             get_performance_analysis(
                 account_result=account_result,
-                benchmark_index=self.benchmark,
+                trading_days_df=trading_days,
+                benchmark_df=benchmark,
                 portfolio_count=self.portfolio_count,
                 rank_n=self.rank_n,
             )

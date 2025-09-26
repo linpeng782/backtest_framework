@@ -56,12 +56,12 @@ def apply_filters_and_select_stocks(pivot_df, cache_dir, rank_n):
     Returns:
         DataFrame: 经过过滤和选择的投资组合权重
     """
-    # date_list = pivot_df.index.tolist()
-    # stock_list = pivot_df.columns.tolist()
 
     # 1. 获取ST过滤、停牌过滤和涨停过滤
     print("过滤：新股、ST、停牌、开盘涨停")
 
+    # date_list = pivot_df.index.tolist()
+    # stock_list = pivot_df.columns.tolist()
     # st_filter = get_st_filter(stock_list, date_list)
     # suspended_filter = get_suspended_filter(stock_list, date_list)
     # limit_up_filter = get_limit_up_filter(stock_list, date_list)

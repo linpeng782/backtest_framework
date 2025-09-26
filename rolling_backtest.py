@@ -10,11 +10,38 @@ from tqdm import *
 from dateutil.relativedelta import relativedelta
 from data_utils import *
 import warnings
-
 warnings.filterwarnings("ignore")
 import logging
 
 logging.getLogger().setLevel(logging.ERROR)
+
+
+def get_previous_trading_date_from_df(trading_days_df, target_date, n=1):
+    """
+    从trading_days DataFrame中获取指定日期前n个交易日
+    
+    Args:
+        trading_days_df: 包含交易日期的DataFrame
+        target_date: 目标日期
+        n: 前推的交易日数量，默认为1
+        
+    Returns:
+        前n个交易日的日期
+    """
+    # 转换目标日期为pandas Timestamp
+    target_date = pd.to_datetime(target_date)
+    
+    # 获取交易日期列表并排序
+    trading_dates = pd.to_datetime(trading_days_df['datetime']).sort_values()
+    
+    # 找到严格小于目标日期的所有交易日
+    valid_dates = trading_dates[trading_dates < target_date]
+    
+    if len(valid_dates) < n:
+        raise ValueError(f"在{target_date}之前没有足够的{n}个交易日")
+        
+    # 返回前n个交易日
+    return valid_dates.iloc[-n]
 
 
 def calculate_target_holdings(
@@ -174,6 +201,7 @@ def get_benchmark(df, benchmark, benchmark_type="mcw"):
 def rolling_backtest(
     portfolio_weights,
     bars_df,
+    trading_days_df,
     portfolio_count=12,
     rebalance_frequency="daily",
     initial_capital=10000 * 10000,
@@ -471,8 +499,8 @@ def rolling_backtest(
 
     # =========================== 添加初始记录 ===========================
     #   在第一个交易日之前添加初始资本记录
-    initial_date = pd.to_datetime(
-        get_previous_trading_date(account_history.index.min(), 1)
+    initial_date = get_previous_trading_date_from_df(
+        trading_days_df, account_history.index.min(), 1
     )
     account_history.loc[initial_date] = [initial_capital, 0, initial_capital]
     account_history = account_history.sort_index()

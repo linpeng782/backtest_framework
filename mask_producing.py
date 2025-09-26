@@ -56,17 +56,47 @@ def vwap_producing(stock_universe, cache_dir):
     vwap_df.to_csv(os.path.join(cache_dir, "vwap_df.csv"))
     print("vwap_df saved to " + os.path.join(cache_dir, "vwap_df.csv"))
 
-    return vwap_df
+
+def trading_days_producing(stock_universe, cache_dir):
+
+    start_date = stock_universe.index.min()
+    end_date = stock_universe.index.max()
+    trading_days = pd.DataFrame(get_trading_dates(start_date, end_date))
+    trading_days.columns = ["datetime"]
+    trading_days.to_csv(os.path.join(cache_dir, "trading_days.csv"))
+    print("trading_days saved to " + os.path.join(cache_dir, "trading_days.csv"))
+
+
+def benchmark_producing(stock_universe, cache_dir, benchmark_index="000985.XSHG"):
+
+    start_date = stock_universe.index.min()
+    end_date = stock_universe.index.max()
+    benchmark = get_price(
+        [benchmark_index],
+        start_date,
+        end_date,
+        fields=["open"],
+        adjust_type="none",
+    ).open.unstack("order_book_id")
+    benchmark.index.names = ["datetime"]
+    benchmark.to_csv(os.path.join(cache_dir, "benchmark.csv"))
+    print("benchmark saved to " + os.path.join(cache_dir, "benchmark.csv"))
 
 
 if __name__ == "__main__":
 
     start_date = "2010-01-01"
     end_date = "2025-09-20"
+    # 券池指数
     index_item = "000985.XSHG"
+    # 缓存目录
     cache_dir = "/Users/didi/DATA/dnn_model/cache"
+    # 基准指数
+    benchmark_index = "000852.XSHG"
 
     stock_universe = INDEX_FIX(start_date, end_date, index_item)
 
     # mask_producing(stock_universe, cache_dir)
-    vwap_producing(stock_universe, cache_dir)
+    # vwap_producing(stock_universe, cache_dir)
+    # trading_days_producing(stock_universe, cache_dir)
+    benchmark_producing(stock_universe, cache_dir, benchmark_index)

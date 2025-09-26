@@ -22,41 +22,42 @@ import os
 from datetime import datetime
 from typing import Dict, Any, Tuple, Optional
 from data_utils import *
+from rolling_backtest import get_previous_trading_date_from_df
 
 
 def get_benchmark(
     account_result: pd.DataFrame,
-    benchmark_index: str = "000985.XSHG",
+    trading_days_df: pd.DataFrame,
+    benchmark_df: pd.DataFrame,
 ) -> pd.Series:
     """
     获取基准指数数据
 
     Args:
         account_result: 账户历史记录
-        benchmark_index: 基准指数代码
+        benchmark_df: 基准指数数据
 
     Returns:
         基准指数价格序列
     """
 
     # 获取开始日期前一个交易日
-    start_date = get_previous_trading_date(account_result.index.min(), 1).strftime(
-        "%Y-%m-%d"
-    )
+    start_date = get_previous_trading_date_from_df(
+        trading_days_df, account_result.index.min(), 1
+    ).strftime("%Y-%m-%d")
     end_date = account_result.index.max().strftime("%Y-%m-%d")
 
     # 市场指数基准
-    price_open = get_price(
-        [benchmark_index], start_date, end_date, fields=["open"]
-    ).open.unstack("order_book_id")
+    price_open = benchmark_df.loc[start_date:end_date]
 
     return price_open
 
 
 def get_performance_analysis(
     account_result: pd.DataFrame,
+    trading_days_df: pd.DataFrame,
+    benchmark_df: pd.DataFrame,
     rf: float = 0.03,
-    benchmark_index: str = "000852.XSHG",
     save_path: Optional[str] = None,
     show_plot: bool = False,
     portfolio_count: Optional[int] = None,
@@ -68,7 +69,7 @@ def get_performance_analysis(
     Args:
         account_result: 账户历史记录，包含 total_account_asset 列
         rf: 无风险利率，默认 3%
-        benchmark_index: 基准指数代码
+        benchmark_df: 基准指数数据
         save_path: 图表保存路径（可选）
         show_plot: 是否显示图表
         portfolio_count: 组合数量（资金分割份数）
@@ -81,7 +82,7 @@ def get_performance_analysis(
     performance = pd.concat(
         [
             account_result["total_account_asset"].to_frame("strategy"),
-            get_benchmark(account_result, benchmark_index),
+            get_benchmark(account_result, trading_days_df, benchmark_df),
         ],
         axis=1,
     )
@@ -89,7 +90,7 @@ def get_performance_analysis(
     performance_net = performance.pct_change().dropna(how="all")  # 日收益率
     performance_cumnet = (1 + performance_net).cumprod()  # 累计收益
     performance_cumnet["alpha"] = (
-        performance_cumnet["strategy"] / performance_cumnet[benchmark_index]
+        performance_cumnet["strategy"] / performance_cumnet[benchmark_df.columns[0]]
     )
     performance_cumnet = performance_cumnet.fillna(1)
 
@@ -255,13 +256,13 @@ def get_performance_analysis(
     )
 
     # 生成图表（如果需要）
-    if show_plot or save_path:
+    if save_path:
         _generate_performance_charts(
             performance_cumnet,
             result,
             portfolio_count,
             rank_n,
-            benchmark_index,
+            benchmark_df.columns[0],
             save_path,
             show_plot,
         )
