@@ -57,11 +57,11 @@ def get_performance_analysis(
     account_result: pd.DataFrame,
     trading_days_df: pd.DataFrame,
     benchmark_df: pd.DataFrame,
+    portfolio_count: int,
+    rank_n: int,
+    save_path: str,
     rf: float = 0.03,
-    save_path: Optional[str] = None,
     show_plot: bool = False,
-    portfolio_count: Optional[int] = None,
-    rank_n: Optional[int] = None,
 ) -> Tuple[pd.DataFrame, Dict[str, Any]]:
     """
     综合性能分析函数

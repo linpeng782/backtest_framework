@@ -22,10 +22,6 @@ portfolio_count: 5
 rebalance_frequency: "daily"
 
 # ==================== 输出设置 ====================
-# 是否保存详细结果到文件
-save_results: true
-
-# 回测结果保存目录
-output_dir: "backtest_results"
-
+# 净值曲线，回测结果将保存到该目录下，如果为空字符串，则不保存
+output_dir: ""
 

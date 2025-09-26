@@ -52,6 +52,7 @@ def load_config_and_run(config_file="backtest_config.yaml"):
         portfolio_count=config["portfolio_count"],
         data_dir=config["data_dir"],
         cache_dir=config["cache_dir"],
+        output_dir=config["output_dir"],
     )
 
     # 4. 执行回测

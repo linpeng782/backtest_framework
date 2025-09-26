@@ -39,6 +39,7 @@ class BacktestFramework:
         portfolio_count: int = 5,
         data_dir: str = None,  # 数据目录
         cache_dir: str = None,  # 保存数据的目录
+        output_dir: str = None,  # 保存输出的目录
     ):
         """
         初始化回测框架
@@ -51,8 +52,8 @@ class BacktestFramework:
             rebalance_frequency: 调仓频率（天）
             portfolio_count: 组合数量（资金分割份数）
             data_dir: 数据目录
-            save_dir: 保存数据的目录
-            benchmark: 基准指数
+            cache_dir: 保存数据的目录
+            output_dir: 保存输出的目录
         """
         # 保存配置参数
         self.signal_file = signal_file
@@ -63,6 +64,7 @@ class BacktestFramework:
         self.portfolio_count = portfolio_count
         self.data_dir = data_dir
         self.cache_dir = cache_dir
+        self.output_dir = output_dir
 
         print(f"初始化回测框架 - 信号文件: {signal_file}")
         print(f"回测时间范围: {start_date} 到 {end_date}")
@@ -114,7 +116,7 @@ class BacktestFramework:
             check_data_coverage_for_signal(signal_path, self.cache_dir)
 
             # 步骤2：获取vwap数据、交易日数据
-            print("\n=== 步骤2: 获取vwap数据 ===")
+            print("\n=== 步骤2: 从缓存读取vwap、交易日历、指数基准数据 ===")
             vwap_df = self.get_vwap_data()
             trading_days = self.get_trading_days()
             benchmark = self.get_benchmark()
@@ -146,6 +148,7 @@ class BacktestFramework:
                 benchmark_df=benchmark,
                 portfolio_count=self.portfolio_count,
                 rank_n=self.rank_n,
+                save_path=self.output_dir,
             )
 
         except Exception as e:
