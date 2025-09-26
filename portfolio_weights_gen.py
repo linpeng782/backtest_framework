@@ -69,7 +69,9 @@ def apply_filters_and_select_stocks(pivot_df, cache_dir, rank_n):
     #     pivot_df.mask(suspended_filter).mask(st_filter).mask(limit_up_filter)
     # )
 
-    combo_mask = pd.read_csv(os.path.join(cache_dir, "combo_mask.csv"), index_col=[0])
+    combo_mask = pd.read_csv(
+        os.path.join(cache_dir, "combo_mask_tb.csv"), index_col=[0]
+    )
     combo_mask.index = pd.to_datetime(combo_mask.index)
     filtered_pivot = pivot_df.mask(~combo_mask)
 

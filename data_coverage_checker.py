@@ -80,8 +80,8 @@ def check_mask_coverage(
 def check_data_coverage_for_signal(
     signal_path: str,
     cache_dir: str,
-    vwap_filename: str = "vwap_df.csv",
-    mask_filename: str = "combo_mask.csv",
+    vwap_filename: str = "vwap_df_tb.csv",
+    mask_filename: str = "combo_mask_tb.csv",
 ):
     """
     检查指定信号文件的数据覆盖情况，如果有缺失直接报错停止程序

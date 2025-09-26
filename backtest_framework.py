@@ -73,8 +73,8 @@ class BacktestFramework:
 
     def get_vwap_data(self) -> pd.DataFrame:
 
-        # filename = "20250825_vwap_df.csv"
-        filename = "vwap_df.csv"
+        # filename = "vwap_df.csv"
+        filename = "vwap_df_tb.csv"
         vwap_df = pd.read_csv(os.path.join(self.cache_dir, filename))
         vwap_df["datetime"] = pd.to_datetime(vwap_df["datetime"])
         vwap_df = vwap_df.set_index(["order_book_id", "datetime"])
