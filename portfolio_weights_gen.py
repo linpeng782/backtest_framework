@@ -58,7 +58,7 @@ def apply_filters_and_select_stocks(pivot_df, cache_dir, rank_n):
     """
 
     # 1. 获取ST过滤、停牌过滤和涨停过滤
-    print("过滤：新股、ST、停牌、开盘涨停")
+    print("过滤:ST、停牌、开盘涨停")
 
     # date_list = pivot_df.index.tolist()
     # stock_list = pivot_df.columns.tolist()

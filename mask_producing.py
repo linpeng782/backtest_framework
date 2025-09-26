@@ -60,10 +60,6 @@ def get_stock_list_from_csv_folder(csv_folder_path, limit=None):
                     }
                 )
 
-    # # 限制处理数量（用于测试）
-    # if limit:
-    #     stock_list = stock_list[:limit]
-
     # 提取所有converted_code作为返回值
     converted_codes = [stock["converted_code"] for stock in stock_list]
 
@@ -78,27 +74,7 @@ def mask_producing(stock_list, stock_universe, cache_dir):
     suspended_filter = get_suspended_filter(stock_list, date_list)
     limit_up_filter = get_limit_up_filter(stock_list, date_list)
 
-    # # 检查哪些股票有null值
-    # print("检查st_filter中的null值:")
-    # st_null_stocks = st_filter.columns[st_filter.isnull().any()].tolist()
-    # print(f"st_filter中有null值的股票: {st_null_stocks}")
-    # print(f"总共{len(st_null_stocks)}只股票")
-
-    # print("\n检查suspended_filter中的null值:")
-    # suspended_null_stocks = suspended_filter.columns[
-    #     suspended_filter.isnull().any()
-    # ].tolist()
-    # print(f"suspended_filter中有null值的股票: {suspended_null_stocks}")
-    # print(f"总共{len(suspended_null_stocks)}只股票")
-
-    # print("\n检查limit_up_filter中的null值:")
-    # limit_up_null_stocks = limit_up_filter.columns[
-    #     limit_up_filter.isnull().any()
-    # ].tolist()
-    # print(f"limit_up_filter中有null值的股票: {limit_up_null_stocks}")
-    # print(f"总共{len(limit_up_null_stocks)}只股票")
-
-    # 填充null值为False（表示不过滤）
+    # 填充null值为True（有问题的股票直接过滤）
     st_filter = st_filter.fillna(True)
     suspended_filter = suspended_filter.fillna(True)
     limit_up_filter = limit_up_filter.fillna(True)
