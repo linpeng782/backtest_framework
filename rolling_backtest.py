@@ -45,37 +45,10 @@ def calculate_target_holdings(
     return target_holdings
 
 
-# 获取指定期间内每个月的第一个交易日
-def get_monthly_first_trading_days(start_date, end_date):
-    """
-    获取指定期间内每个月的第一个交易日
-
-    :param start_date: 开始日期
-    :param end_date: 结束日期
-    :return: 每月第一个交易日列表
-    """
-    # 获取所有交易日
-    all_trading_days = get_trading_dates(start_date, end_date)
-
-    monthly_first_days = []
-    current_month = None
-
-    for date in all_trading_days:
-        date_month = (date.year, date.month)
-        if current_month != date_month:
-            monthly_first_days.append(date)
-            current_month = date_month
-
-    return monthly_first_days
-
-
 # 生成调仓日期序列
-def get_rebalance_dates(start_date, end_date, frequency, portfolio_weights):
+def get_rebalance_dates(frequency, portfolio_weights):
     """
     根据频率生成调仓日期序列
-
-    :param start_date: 开始日期
-    :param end_date: 结束日期
     :param frequency: 调仓频率 ('daily', 'weekly', 'monthly', 或整数天数)
     :param portfolio_weights: 投资组合权重矩阵（用于获取交易日）
     :return: 调仓日期序列 (pd.DatetimeIndex)
@@ -95,8 +68,17 @@ def get_rebalance_dates(start_date, end_date, frequency, portfolio_weights):
                 current_week = week_period
         return pd.DatetimeIndex(weekly_first_days)
     elif frequency == "monthly":
-        # 每月第一个交易日（原逻辑）
-        return pd.DatetimeIndex(get_monthly_first_trading_days(start_date, end_date))
+        # 每月第一个交易日
+        monthly_first_days = []
+        current_month = None
+
+        for date in all_trading_days:
+            date_month = (date.year, date.month)
+            if current_month != date_month:
+                monthly_first_days.append(date)
+                current_month = date_month
+
+        return pd.DatetimeIndex(monthly_first_days)
     elif isinstance(frequency, int):
         # 自定义天数间隔
         rebalance_dates = []
@@ -109,54 +91,26 @@ def get_rebalance_dates(start_date, end_date, frequency, portfolio_weights):
         raise ValueError(f"不支持的调仓频率: {frequency}")
 
 
-# 获取到期日期（灵活版本）
-def get_expire_date_flexible(start_idx, portfolio_count, rebalance_dates, frequency):
+def get_expire_date(date_index, portfolio_count, rebalance_dates, portfolio_weights):
     """
     根据调仓日期序列计算到期日期
 
-    :param start_idx: 建仓日期在rebalance_dates中的索引
+    新的设计理念：严格限制在数据范围内，避免推算未来日期
+
+    :param date_index: 调仓日期在rebalance_dates中的索引
     :param portfolio_count: 组合数量（持仓期数）
     :param rebalance_dates: 调仓日期序列
-    :param frequency: 调仓频率
+    :param portfolio_weights: 投资组合权重矩阵（用于获取数据边界）
     :return: 到期日期（pd.Timestamp）
     """
-    expire_idx = start_idx + portfolio_count
+    last_date = portfolio_weights.index.max()
+    expire_idx = date_index + portfolio_count
     if expire_idx < len(rebalance_dates):
         return pd.Timestamp(rebalance_dates[expire_idx])
     else:
-        # 超出范围时，基于最后日期推算
-        last_date = pd.Timestamp(rebalance_dates[-1])
-        if isinstance(frequency, int):
-            # 按天数推算
-            days_to_add = (expire_idx - len(rebalance_dates) + 1) * frequency
-            return last_date + pd.Timedelta(days=days_to_add)
-        elif frequency == "weekly":
-            weeks_to_add = expire_idx - len(rebalance_dates) + 1
-            return last_date + pd.Timedelta(weeks=weeks_to_add)
-        elif frequency == "monthly":
-            months_to_add = expire_idx - len(rebalance_dates) + 1
-            return last_date + relativedelta(months=months_to_add)
-        else:  # daily
-            days_to_add = expire_idx - len(rebalance_dates) + 1
-            return last_date + pd.Timedelta(days=days_to_add)
-
-
-# 获取到期日期（原版本，保持向后兼容）
-def get_expire_date(start_month_idx, portfolio_count, monthly_first_days):
-    """
-    根据建仓月份索引和组合数量，计算到期日期
-    :param start_month_idx: 建仓月份在monthly_first_days中的索引
-    :param portfolio_count: 组合数量（也是持仓月数）
-    :param monthly_first_days: 每月第一个交易日列表
-    :return: 到期日期（pd.Timestamp）
-    """
-    expire_month_idx = start_month_idx + portfolio_count
-    if expire_month_idx < len(monthly_first_days):
-        return pd.Timestamp(monthly_first_days[expire_month_idx])
-    else:
-        # 如果超出了monthly_first_days的范围，返回最后一个日期后的N个月
-        last_date = pd.Timestamp(monthly_first_days[-1])
-        return last_date + relativedelta(months=portfolio_count)
+        # 超出调仓序列时，使用数据的最后日期作为到期日期
+        # 这确保了所有组合都在数据支撑的范围内运行
+        return last_date
 
 
 # 计算单笔交易的手续费
@@ -180,50 +134,6 @@ def calc_transaction_fee(
 
     # 应用最低手续费限制
     return max(fee, min_transaction_fee)  # 返回实际手续费和最低手续费中的较大值
-
-
-# 获取股票价格数据
-def get_stock_bars(stock_price_data, portfolio_weights, adjust):
-    """
-    从股票价格数据中获取指定时间范围和股票列表的开盘价数据
-
-    参数:
-        stock_price_data: 股票价格数据（多级索引DataFrame）
-        portfolio_weights: 投资组合权重矩阵
-        adjust: 复权类型（'post'或'none'）
-
-    返回:
-        开盘价DataFrame（日期为行索引，股票代码为列索引）
-    """
-
-    # 计算时间范围：开始日期，结束日期
-    start_date = portfolio_weights.index.min()
-    end_date = portfolio_weights.index.max()
-
-    print(f"筛选时间范围: {start_date} 到 {end_date}")
-
-    # 获取股票列表
-    stock_list = portfolio_weights.columns.tolist()
-    print(f"股票数量: {len(stock_list)}")
-
-    # 获取stock_price_data中所有的股票代码并去重
-    stock_book = stock_price_data.index.get_level_values("order_book_id").unique()
-    print(f"stock_price_data中的股票数量: {len(stock_book)}")
-
-    # 按时间范围和股票列表筛选数据
-    filtered_data = stock_price_data.loc[
-        (stock_price_data.index.get_level_values("order_book_id").isin(stock_list))
-        & (stock_price_data.index.get_level_values("datetime") >= start_date)
-        & (stock_price_data.index.get_level_values("datetime") <= end_date)
-    ]
-
-    # 根据复权类型返回相应的开盘价数据
-    if adjust == "post":
-        open_price = filtered_data["开盘价"].unstack("order_book_id")
-        return open_price
-    elif adjust == "none":
-        open_price = filtered_data["未复权开盘价"].unstack("order_book_id")
-        return open_price
 
 
 def get_stock_vwap(vwap_data, adjust):
@@ -310,35 +220,11 @@ def rolling_backtest(
         columns=["total_account_asset", "holding_market_cap", "cash_account"],
     )
 
-    # 获取所有股票的未复权vwap数据
-    print("获取所有股票的未复权vwap数据")
-    unadjusted_prices = get_stock_vwap(bars_df, "none")
-    # 获取所有股票的后复权vwap数据
-    print("获取所有股票的后复权vwap数据")
-    adjusted_prices = get_stock_vwap(bars_df, "post")
-
-    # 获取每只股票的最小交易单位（通常为100股）
-    min_trade_units = pd.Series(
-        dict([(stock, 100) for stock in portfolio_weights.columns.tolist()])
-    )
-
-    # 生成调仓日期序列
-    signal_start_date = portfolio_weights.index.min()
-    signal_end_date = portfolio_weights.index.max()
-    rebalance_dates = get_rebalance_dates(
-        signal_start_date, signal_end_date, rebalance_frequency, portfolio_weights
-    )
-
-    print(f"调仓频率: {rebalance_frequency}")
-    print(f"总调仓次数: {len(rebalance_dates)}")
-    print(f"资金分割份数: {portfolio_count}")
-
-    # =========================== N个组合管理 ===========================
     # 存储N个组合的信息和历史记录
     portfolios = {}
     portfolio_histories = {}
 
-    # 初始化N个空组合及其历史记录
+    # 初始化N个空组合、仓位记录
     for i in range(portfolio_count):
         portfolios[i] = {
             "holdings": pd.Series(dtype=float),  # 持仓股票及数量
@@ -353,19 +239,39 @@ def rolling_backtest(
             "cash_account": [],
         }
 
+    # ===========================获取股票价格数据===========================
+    # 获取所有股票的未复权vwap、后复权vwap
+    unadjusted_prices = get_stock_vwap(bars_df, "none")
+    adjusted_prices = get_stock_vwap(bars_df, "post")
+
+    # 获取每只股票的最小交易单位（通常为100股）
+    min_trade_units = pd.Series(
+        dict([(stock, 100) for stock in portfolio_weights.columns.tolist()])
+    )
+
+    # ===========================获取调仓日期序列===========================
+    # 生成调仓日期序列
+    rebalance_dates = get_rebalance_dates(rebalance_frequency, portfolio_weights)
+
+    print(f"调仓频率: {rebalance_frequency}")
+    print(f"总调仓次数: {len(rebalance_dates)}")
+    print(f"资金分割份数: {portfolio_count}")
+
     # =========================== 开始滚动建仓和调仓 ===========================
-    portfolio_index = 0  # 当前使用的组合索引（0到portfolio_count-1循环）
+    # 当前使用的组合索引（0到portfolio_count-1循环）
+    portfolio_index = 0
 
     for date_idx, rebalance_date_raw in enumerate(tqdm(rebalance_dates)):
 
         # 统一转换为pd.Timestamp类型
         rebalance_date = pd.Timestamp(rebalance_date_raw)
 
-        # 获取当前调仓日的目标权重
+        if rebalance_date == pd.Timestamp("2025-08-21"):
+            breakpoint()
+
+        # 获取当前调仓日的目标权重、目标股票、未复权价格
         target_weights = portfolio_weights.loc[rebalance_date].dropna()
-        # 获取当前调仓日的目标股票
         target_stocks = target_weights.index.tolist()
-        # 计算目标股票的开盘价
         target_prices = unadjusted_prices.loc[rebalance_date, target_stocks]
 
         # =========================== 处理当前组合，更新持仓 ===========================
@@ -383,8 +289,8 @@ def rolling_backtest(
             available_cash = last_period_records.loc[rebalance_date]  # 最后一天的总资产
 
             # 重置组合的到期日期（新的N个周期）
-            current_portfolio["expire_date"] = get_expire_date_flexible(
-                date_idx, portfolio_count, rebalance_dates, rebalance_frequency
+            current_portfolio["expire_date"] = get_expire_date(
+                date_idx, portfolio_count, rebalance_dates, portfolio_weights
             )
             current_portfolio["start_date"] = rebalance_date  # 更新开始日期
 
@@ -395,8 +301,8 @@ def rolling_backtest(
             current_portfolio["is_active"] = True
             current_portfolio["start_date"] = rebalance_date
             # 计算到期日期（N个周期后的调仓日）
-            current_portfolio["expire_date"] = get_expire_date_flexible(
-                date_idx, portfolio_count, rebalance_dates, rebalance_frequency
+            current_portfolio["expire_date"] = get_expire_date(
+                date_idx, portfolio_count, rebalance_dates, portfolio_weights
             )
 
         # =========================== 计算目标持仓 ===========================
@@ -409,7 +315,7 @@ def rolling_backtest(
             sell_cost_rate,
         )
 
-        # =========================== 计算持仓变动 ===========================
+        # =========================== 计算持仓变动及交易成本 ===========================
         ## 步骤1：计算持仓变动量（目标持仓 - 历史持仓）
         # fill_value=0 确保新增股票（历史持仓为空）和清仓股票（目标持仓为空）都能正确计算
         holdings_change_raw = target_holdings.sub(
@@ -424,8 +330,6 @@ def rolling_backtest(
 
         # 获取当前调仓日的所有股票开盘价
         current_prices = unadjusted_prices.loc[rebalance_date]
-
-        # =========================== 执行交易并计算成本 ===========================
 
         # 计算总交易成本
         total_transaction_cost = (
@@ -456,11 +360,10 @@ def rolling_backtest(
         # 处理价格缺失的情况：当价格为NaN时，使用前一日价格填充
         simulated_prices_filled = simulated_prices.ffill()
 
-        # =========================== 计算投资组合市值 ===========================
         # 投资组合市值 = 每只股票的(调整后价格 * 持仓数量)的总和
         portfolio_market_value = (simulated_prices_filled * target_holdings).sum(axis=1)
 
-        # =========================== 计算现金账户余额 ===========================
+        # =========================== 计算现金账户余额及总资产 ===========================
 
         # 更新现金余额
         current_portfolio["cash"] = (
@@ -479,7 +382,6 @@ def rolling_backtest(
             index=portfolio_market_value.index,
         )
 
-        # =========================== 计算账户总资产 ===========================
         # 总资产 = 持仓市值 + 现金余额
         total_portfolio_value = portfolio_market_value + cash_balance
 

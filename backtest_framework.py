@@ -75,72 +75,14 @@ class BacktestFramework:
 
     # ==================== 数据获取模块 ====================
 
-    def get_vwap_data(self, stock_list: List[str]) -> pd.DataFrame:
-        """
-        获取VWAP数据
+    def get_vwap_data(self) -> pd.DataFrame:
 
-        Args:
-            stock_list: 股票代码列表
-
-        Returns:
-            VWAP数据 DataFrame，包含 vwap 和 post_vwap 两列
-        """
-
-        # 首先尝试从文件加载现有数据
-        vwap_filename = f"{self.end_date.replace('-', '')}_vwap_df.csv"
-        # 使用配置文件中的cache_dir作为VWAP数据保存路径
-        vwap_path = os.path.join(self.cache_dir, vwap_filename)
-
-        if os.path.exists(vwap_path):
-            print(f"从文件加载VWAP数据: {vwap_path}")
-            vwap_df = pd.read_csv(vwap_path)
-            vwap_df["datetime"] = pd.to_datetime(vwap_df["datetime"])
-            vwap_df = vwap_df.set_index(["order_book_id", "datetime"])
-            return vwap_df
-        else:
-            print(f"VWAP数据文件不存在: {vwap_path}")
-            print("开始实时获取VWAP数据...")
-
-            try:
-                print(f"获取VWAP数据，时间范围: {self.start_date} 到 {self.end_date}")
-                print(f"股票数量: {len(stock_list)}")
-
-                # 获取技术指标数据：成交额和成交量
-                tech_list = ["total_turnover", "volume"]
-                daily_tech = get_price(
-                    stock_list,
-                    self.start_date,
-                    self.end_date,
-                    fields=tech_list,
-                    adjust_type="post_volume",
-                    skip_suspended=False,
-                ).sort_index()
-
-                # 计算后复权VWAP（成交额/后复权调整后的成交量）
-                post_vwap = daily_tech["total_turnover"] / daily_tech["volume"]
-
-                # 获取未复权VWAP价格数据
-                unadjusted_vwap = get_vwap(stock_list, self.start_date, self.end_date)
-
-                # 转换为DataFrame并添加后复权VWAP
-                vwap_df = pd.DataFrame(
-                    {"unadjusted_vwap": unadjusted_vwap, "post_vwap": post_vwap}
-                )
-
-                # 统一索引名称
-                vwap_df.index.names = ["order_book_id", "datetime"]
-
-                # 保存数据以备下次使用
-                print(f"保存VWAP数据到: {vwap_path}")
-                os.makedirs(os.path.dirname(vwap_path), exist_ok=True)
-                vwap_df.to_csv(vwap_path)
-
-                return vwap_df
-
-            except Exception as e:
-                print(f"获取VWAP数据时出错: {e}")
-                print("跳过VWAP数据获取，返回None")
-                return None
+        # filename = "20250825_vwap_df.csv"
+        filename = "vwap_df.csv"
+        vwap_df = pd.read_csv(os.path.join(self.cache_dir, filename))
+        vwap_df["datetime"] = pd.to_datetime(vwap_df["datetime"])
+        vwap_df = vwap_df.set_index(["order_book_id", "datetime"])
+        return vwap_df
 
     # ==================== 主执行流程 ====================
 
@@ -159,9 +101,7 @@ class BacktestFramework:
             # 步骤1: 获取vwap数据
             print("\n=== 步骤1: 获取vwap数据 ===")
             signal_path = os.path.join(self.data_dir, self.signal_file)
-
-            stock_list = get_stock_list_from_signal(signal_path)
-            vwap_df = self.get_vwap_data(stock_list)
+            vwap_df = self.get_vwap_data()
 
             # 步骤2: 生成投资组合权重
             print("\n=== 步骤2: 生成投资组合权重 ===")

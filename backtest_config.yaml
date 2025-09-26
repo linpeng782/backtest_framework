@@ -3,7 +3,7 @@
 
 # ==================== 基本参数 ====================
 # 信号文件名
-signal_file: "pred5days_top2k"
+signal_file: "pred5days_2"
   
 # 信号目录(需要包含信号文件)
 data_dir: "/Users/didi/DATA/dnn_model/signal"
@@ -18,7 +18,7 @@ rank_n: 30
 # 组合数量（资金分割份数）
 portfolio_count: 5
 
-# 调仓频率（天）
+# 调仓频率
 rebalance_frequency: "daily"
 
 # 基准指数
