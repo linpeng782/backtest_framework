@@ -15,6 +15,7 @@ from data_utils import (
     get_limit_up_filter,
     get_new_stock_filter,
 )
+from loguru import logger
 
 
 # 动态选股：确保每日选出rank_n只股票（考虑停牌过滤）
@@ -58,7 +59,7 @@ def apply_filters_and_select_stocks(pivot_df, cache_dir, rank_n):
     """
 
     # 1. 获取ST过滤、停牌过滤和涨停过滤
-    print("过滤:ST、停牌、开盘涨停")
+    logger.success("过滤:ST、停牌、开盘涨停")
 
     # date_list = pivot_df.index.tolist()
     # stock_list = pivot_df.columns.tolist()
@@ -76,7 +77,7 @@ def apply_filters_and_select_stocks(pivot_df, cache_dir, rank_n):
     filtered_pivot = pivot_df.mask(~combo_mask)
 
     # 2. 对每一行（每个交易日）应用选股逻辑
-    print(f"开始动态选股，目标每日选出{rank_n}只股票...")
+    logger.info(f"开始动态选股，目标每日选出{rank_n}只股票...")
     filtered_pivot = filtered_pivot.apply(
         lambda row: select_top_n_stocks(row, rank_n), axis=1
     )
@@ -107,28 +108,30 @@ def generate_portfolio_weights(file_path, cache_dir, rank_n=30):
     Returns:
         DataFrame: 投资组合权重矩阵
     """
-    print(f"处理信号文件: {file_path}")
-    print(f"选股数量: {rank_n}")
+    logger.info(f"处理信号文件: {file_path}")
+    logger.info(f"选股数量: {rank_n}")
 
     # 1. 读取信号文件并转换为透视表
     pivot_df = read_and_parse_signal_file(file_path)
 
     if pivot_df is None or pivot_df.empty:
-        print("错误：无法读取或解析信号文件")
+        logger.error("错误：无法读取或解析信号文件")
         return None
 
-    print(f"信号数据形状: {pivot_df.shape}")
-    print(f"时间范围: {pivot_df.index.min().date()} 到 {pivot_df.index.max().date()}")
+    logger.info(f"信号数据形状: {pivot_df.shape}")
+    logger.info(
+        f"时间范围: {pivot_df.index.min().date()} 到 {pivot_df.index.max().date()}"
+    )
 
     # 2. 应用过滤器并选择股票
     portfolio_weights = apply_filters_and_select_stocks(pivot_df, cache_dir, rank_n)
 
     if portfolio_weights is None or portfolio_weights.empty:
-        print("错误：无法生成投资组合权重")
+        logger.error("错误：无法生成投资组合权重")
         return None
 
-    print(f"投资组合权重矩阵形状: {portfolio_weights.shape}")
-    print(f"交易日期数量: {len(portfolio_weights.index)}")
-    print(f"股票数量: {len(portfolio_weights.columns)}")
+    logger.info(f"投资组合权重矩阵形状: {portfolio_weights.shape}")
+    logger.info(f"交易日期数量: {len(portfolio_weights.index)}")
+    logger.info(f"股票数量: {len(portfolio_weights.columns)}")
 
     return portfolio_weights

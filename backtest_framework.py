@@ -14,6 +14,7 @@ from portfolio_weights_gen import generate_portfolio_weights
 from rolling_backtest import rolling_backtest
 from signal_reader import get_stock_list_from_signal
 from data_coverage_checker import check_data_coverage_for_signal
+from loguru import logger
 
 
 class BacktestFramework:
@@ -66,8 +67,8 @@ class BacktestFramework:
         self.cache_dir = cache_dir
         self.output_dir = output_dir
 
-        print(f"初始化回测框架 - 信号文件: {signal_file}")
-        print(f"回测时间范围: {start_date} 到 {end_date}")
+        logger.info(f"初始化回测框架 - 信号文件: {signal_file}")
+        logger.info(f"回测时间范围: {start_date} 到 {end_date}")
 
     # ==================== 数据获取模块 ====================
 
@@ -103,35 +104,35 @@ class BacktestFramework:
         Returns:
             包含所有结果的字典
         """
-        print("\n" + "=" * 60)
-        print("开始完整的端到端回测流程")
-        print("=" * 60)
+        logger.info("\n" + "=" * 60)
+        logger.info("开始完整的端到端回测流程")
+        logger.info("=" * 60)
 
         try:
             # 步骤1：数据覆盖检查
-            print("\n=== 步骤1: 数据覆盖检查 ===")
+            logger.info("\n=== 步骤1: 数据覆盖检查 ===")
             signal_path = os.path.join(self.data_dir, self.signal_file)
 
             # 检查数据覆盖情况（如果有缺失会直接抛出异常停止程序）
             check_data_coverage_for_signal(signal_path, self.cache_dir)
 
             # 步骤2：获取vwap数据、交易日数据
-            print("\n=== 步骤2: 从缓存读取vwap、交易日历、指数基准数据 ===")
+            logger.info("\n=== 步骤2: 从缓存读取vwap、交易日历、指数基准数据 ===")
             vwap_df = self.get_vwap_data()
             trading_days = self.get_trading_days()
             benchmark = self.get_benchmark()
 
             # 交易日历数据已准备完成
-            print(f"交易日历数据加载完成，包含 {len(trading_days)} 个交易日")
+            logger.info(f"交易日历数据加载完成，包含 {len(trading_days)} 个交易日")
 
             # 步骤3：生成投资组合权重
-            print("\n=== 步骤3: 生成投资组合权重 ===")
+            logger.info("\n=== 步骤3: 生成投资组合权重 ===")
             portfolio_weights = generate_portfolio_weights(
                 signal_path, rank_n=self.rank_n, cache_dir=self.cache_dir
             )
 
             # 步骤4：执行滚动回测
-            print("\n=== 步骤4: 执行滚动回测 ===")
+            logger.info("\n=== 步骤4: 执行滚动回测 ===")
             account_result = rolling_backtest(
                 portfolio_weights=portfolio_weights,
                 bars_df=vwap_df,
@@ -141,7 +142,7 @@ class BacktestFramework:
             )
 
             # 步骤5：策略回测结果
-            print("\n=== 步骤5: 策略回测结果 ===")
+            logger.info("\n=== 步骤5: 策略回测结果 ===")
             get_performance_analysis(
                 account_result=account_result,
                 trading_days_df=trading_days,
@@ -152,5 +153,5 @@ class BacktestFramework:
             )
 
         except Exception as e:
-            print(f"\n回测过程中发生错误: {str(e)}")
+            logger.error(f"\n回测过程中发生错误: {str(e)}")
             raise

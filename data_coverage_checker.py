@@ -9,6 +9,7 @@ import pandas as pd
 import os
 from typing import Dict, Set
 from signal_reader import read_signal_file
+from loguru import logger
 
 
 def check_vwap_coverage(
@@ -41,7 +42,7 @@ def check_vwap_coverage(
             f"VWAP数据缺失日期 ({len(missing_dates)}个): {sorted(list(missing_dates))[:10]}..."
         )
 
-    print(f"✅ VWAP数据覆盖检查通过")
+    logger.success(f"✅ VWAP数据覆盖检查通过")
 
 
 def check_mask_coverage(
@@ -74,7 +75,7 @@ def check_mask_coverage(
             f"Mask数据缺失日期 ({len(missing_dates)}个): {sorted(list(missing_dates))[:10]}..."
         )
 
-    print(f"✅ Mask数据覆盖检查通过")
+    logger.success(f"✅ Mask数据覆盖检查通过")
 
 
 def check_data_coverage_for_signal(
@@ -91,12 +92,12 @@ def check_data_coverage_for_signal(
         cache_dir: 缓存目录路径
         vwap_filename: VWAP文件名
     """
-    print("=" * 80)
-    print("开始数据覆盖检查")
-    print("=" * 80)
+    logger.info("=" * 80)
+    logger.info("开始数据覆盖检查")
+    logger.info("=" * 80)
 
     # 1. 读取信号文件
-    print(f"\n📊 读取信号文件: {signal_path}")
+    logger.info(f"\n📊 读取信号文件: {signal_path}")
     signal_df = read_signal_file(signal_path)
 
     signal_stocks = set(signal_df["股票代码"].unique())
@@ -104,17 +105,17 @@ def check_data_coverage_for_signal(
     signal_start = signal_df["日期"].min()
     signal_end = signal_df["日期"].max()
 
-    print(f"   信号文件统计:")
-    print(f"   - 股票数量: {len(signal_stocks)}")
-    print(f"   - 日期范围: {signal_start.date()} 到 {signal_end.date()}")
-    print(f"   - 总记录数: {len(signal_df)}")
+    logger.info(f"   信号文件统计:")
+    logger.info(f"   - 股票数量: {len(signal_stocks)}")
+    logger.info(f"   - 日期范围: {signal_start.date()} 到 {signal_end.date()}")
+    logger.info(f"   - 总记录数: {len(signal_df)}")
 
     # 2. 检查VWAP数据覆盖（如果有缺失会直接抛出异常）
-    print(f"\n📈 检查VWAP数据覆盖...")
+    logger.info(f"\n📈 检查VWAP数据覆盖...")
     check_vwap_coverage(signal_stocks, signal_dates, cache_dir, vwap_filename)
 
     # 3. 检查Mask数据覆盖（如果有缺失会直接抛出异常）
-    print(f"\n🎭 检查Mask数据覆盖...")
+    logger.info(f"\n🎭 检查Mask数据覆盖...")
     check_mask_coverage(signal_stocks, signal_dates, cache_dir, mask_filename)
 
-    print("=" * 80)
+    logger.info("=" * 80)

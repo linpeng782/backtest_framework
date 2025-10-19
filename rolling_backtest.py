@@ -10,36 +10,36 @@ from tqdm import *
 from dateutil.relativedelta import relativedelta
 from data_utils import *
 import warnings
-warnings.filterwarnings("ignore")
-import logging
 
-logging.getLogger().setLevel(logging.ERROR)
+warnings.filterwarnings("ignore")
+from loguru import logger
+
 
 
 def get_previous_trading_date_from_df(trading_days_df, target_date, n=1):
     """
     从trading_days DataFrame中获取指定日期前n个交易日
-    
+
     Args:
         trading_days_df: 包含交易日期的DataFrame
         target_date: 目标日期
         n: 前推的交易日数量，默认为1
-        
+
     Returns:
         前n个交易日的日期
     """
     # 转换目标日期为pandas Timestamp
     target_date = pd.to_datetime(target_date)
-    
+
     # 获取交易日期列表并排序
-    trading_dates = pd.to_datetime(trading_days_df['datetime']).sort_values()
-    
+    trading_dates = pd.to_datetime(trading_days_df["datetime"]).sort_values()
+
     # 找到严格小于目标日期的所有交易日
     valid_dates = trading_dates[trading_dates < target_date]
-    
+
     if len(valid_dates) < n:
         raise ValueError(f"在{target_date}之前没有足够的{n}个交易日")
-        
+
     # 返回前n个交易日
     return valid_dates.iloc[-n]
 
@@ -172,30 +172,6 @@ def get_stock_vwap(vwap_data, adjust):
     elif adjust == "none":
         adjusted_price = vwap_data["unadjusted_vwap"].unstack("order_book_id")
         return adjusted_price
-
-
-# 获取基准
-def get_benchmark(df, benchmark, benchmark_type="mcw"):
-    """
-    :param df: 买入队列 -> dataframe/unstack
-    :param benchmark: 基准指数 -> str
-    :return ret: 基准的逐日收益 -> dataframe
-    """
-    start_date = get_previous_trading_date(df.index.min(), 1).strftime("%F")
-    end_date = df.index.max().strftime("%F")
-    if benchmark_type == "mcw":
-        price_open = get_price(
-            [benchmark], start_date, end_date, fields=["open"]
-        ).open.unstack("order_book_id")
-    else:
-        stock_list = index_fix.columns.tolist()
-        price_open = get_price(
-            stock_list, start_date, end_date, fields=["open"]
-        ).open.unstack("order_book_id")
-        price_open = price_open.pct_change().mask(~index_fix).mean(axis=1)
-        price_open = (1 + price_open).cumprod().to_frame(benchmark)
-
-    return price_open
 
 
 def rolling_backtest(
