@@ -116,14 +116,11 @@ class BacktestFramework:
             # 检查数据覆盖情况（如果有缺失会直接抛出异常停止程序）
             check_data_coverage_for_signal(signal_path, self.cache_dir)
 
-            # 步骤2：获取vwap数据、交易日数据
+            # 步骤2：获取vwap数据、交易日数据、指数基准数据
             logger.info("\n=== 步骤2: 从缓存读取vwap、交易日历、指数基准数据 ===")
             vwap_df = self.get_vwap_data()
             trading_days = self.get_trading_days()
             benchmark = self.get_benchmark()
-
-            # 交易日历数据已准备完成
-            logger.info(f"交易日历数据加载完成，包含 {len(trading_days)} 个交易日")
 
             # 步骤3：生成投资组合权重
             logger.info("\n=== 步骤3: 生成投资组合权重 ===")
