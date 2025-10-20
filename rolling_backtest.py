@@ -15,6 +15,56 @@ warnings.filterwarnings("ignore")
 from loguru import logger
 
 
+def calc_turnover_rate(portfolios_dict, portfolio_count, rebalance_frequency):
+    """
+    计算换手率并生成DataFrame
+
+    Args:
+        portfolios_dict: 包含所有组合信息的字典
+        portfolio_count: 组合数量
+
+    Returns:
+        turnover_df: DataFrame，index为调仓日期，columns为G0, G1, G2等组合编号
+    """
+    # 收集所有调仓日期
+    all_dates = set()
+    for i in range(portfolio_count):
+        if "turnover_records" in portfolios_dict[i]:
+            all_dates.update(portfolios_dict[i]["turnover_records"].keys())
+
+    # 按日期排序
+    all_dates = sorted(list(all_dates))
+
+    # 创建DataFrame
+    turnover_dict = {}
+    for i in range(portfolio_count):
+        col_name = f"G{i}"
+        group_turnover_dict = portfolios_dict[i].get("turnover_records", {})
+        turnover_dict[col_name] = [
+            group_turnover_dict.get(date, np.nan) for date in all_dates
+        ]
+
+    turnover_df = pd.DataFrame(turnover_dict, index=all_dates)
+    turnover_df.index.name = "调仓日期"
+
+    # 计算年化换手率
+    avg_turnover = turnover_df.mean().mean()  # 平均每次调仓的换手率
+
+    # 根据调仓频率计算年化系数
+    if rebalance_frequency == "daily":
+        annualization_factor = 252  # 一年约252个交易日
+    elif rebalance_frequency == "weekly":
+        annualization_factor = 52  # 一年52周
+    elif rebalance_frequency == "monthly":
+        annualization_factor = 12  # 一年12个月
+    elif isinstance(rebalance_frequency, int):
+        # 自定义天数间隔，计算一年调仓次数
+        annualization_factor = 252 / rebalance_frequency
+
+    annual_turnover = avg_turnover * annualization_factor
+
+    return annual_turnover
+
 
 def get_previous_trading_date_from_df(trading_days_df, target_date, n=1):
     """
@@ -131,6 +181,7 @@ def get_expire_date(date_index, portfolio_count, rebalance_dates, portfolio_weig
     :return: 到期日期（pd.Timestamp）
     """
     last_date = portfolio_weights.index.max()
+    # 计算到期日期:
     expire_idx = date_index + portfolio_count
     if expire_idx < len(rebalance_dates):
         return pd.Timestamp(rebalance_dates[expire_idx])
@@ -225,19 +276,24 @@ def rolling_backtest(
     )
 
     # 存储N个组合的信息和历史记录
-    portfolios = {}
-    portfolio_histories = {}
+    portfolios_dict = {}
+    portfolio_histories_dict = {}
+
+    # 组合索引（0到portfolio_count-1）
+    portfolio_index = 0
 
     # 初始化N个空组合、仓位记录
     for i in range(portfolio_count):
-        portfolios[i] = {
+        portfolios_dict[i] = {
             "holdings": pd.Series(dtype=float),  # 持仓股票及数量
             "cash": 0.0,  # 现金余额
             "start_date": None,  # 建仓日期
             "expire_date": None,  # 到期日期
             "is_active": False,  # 是否激活
+            "previous_stocks": set(),  # 上一次持仓的股票集合
+            "turnover_records": {},  # 换手率记录 {日期: 换手率}
         }
-        portfolio_histories[i] = {
+        portfolio_histories_dict[i] = {
             "total_account_asset": [],
             "holding_market_cap": [],
             "cash_account": [],
@@ -262,9 +318,6 @@ def rolling_backtest(
     print(f"资金分割份数: {portfolio_count}")
 
     # =========================== 开始滚动建仓和调仓 ===========================
-    # 当前使用的组合索引（0到portfolio_count-1循环）
-    portfolio_index = 0
-
     for date_idx, rebalance_date_raw in enumerate(tqdm(rebalance_dates)):
 
         # 统一转换为pd.Timestamp类型
@@ -279,7 +332,8 @@ def rolling_backtest(
         target_prices = unadjusted_prices.loc[rebalance_date, target_stocks]
 
         # =========================== 处理当前组合，更新持仓 ===========================
-        current_portfolio = portfolios[portfolio_index]
+        ## 创建引用（指针）##
+        current_portfolio = portfolios_dict[portfolio_index]
 
         # 检查组合状态和到期情况
         if current_portfolio["is_active"]:
@@ -287,27 +341,48 @@ def rolling_backtest(
             # print(f"组合{portfolio_index}号到期调仓，调仓日期：{rebalance_date}")
 
             # 取最后一个时间段的最后一天的值
-            last_period_records = portfolio_histories[portfolio_index][
+            last_period_records = portfolio_histories_dict[portfolio_index][
                 "total_account_asset"
             ][-1]
             available_cash = last_period_records.loc[rebalance_date]  # 最后一天的总资产
 
+            # 重置组合的开始日期
+            current_portfolio["start_date"] = rebalance_date
             # 重置组合的到期日期（新的N个周期）
             current_portfolio["expire_date"] = get_expire_date(
                 date_idx, portfolio_count, rebalance_dates, portfolio_weights
             )
-            current_portfolio["start_date"] = rebalance_date  # 更新开始日期
+
+            # 计算换手率
+            previous_stocks = current_portfolio["previous_stocks"]
+            current_stocks = set(target_stocks)
+            if len(previous_stocks) > 0:
+                # 换手率 = (上次持仓股票数 - 本次持仓股票数) / 上次持仓股票数
+                turnover_rate = len(previous_stocks - current_stocks) / len(
+                    previous_stocks
+                )
+                current_portfolio["turnover_records"][rebalance_date] = round(
+                    turnover_rate, 4
+                )
+
+            # 更新previous_stocks为当前股票集合
+            current_portfolio["previous_stocks"] = current_stocks
 
         else:
             # 新建仓，使用固定的月度资金
-            print(f"组合{portfolio_index}号首次建仓，建仓日期：{rebalance_date}")
+            logger.success(
+                f"组合{portfolio_index}号首次建仓，建仓日期：{rebalance_date}"
+            )
             available_cash = portfolio_capital
             current_portfolio["is_active"] = True
             current_portfolio["start_date"] = rebalance_date
-            # 计算到期日期（N个周期后的调仓日）
             current_portfolio["expire_date"] = get_expire_date(
                 date_idx, portfolio_count, rebalance_dates, portfolio_weights
             )
+            # 记录股票集合（首次建仓）
+            current_portfolio["previous_stocks"] = set(target_stocks)
+            # 首次建仓换手率记录为NaN
+            current_portfolio["turnover_records"][rebalance_date] = np.nan
 
         # =========================== 计算目标持仓 ===========================
         # 计算目标持仓数量（本次调仓需要买入的股票数量）
@@ -391,13 +466,13 @@ def rolling_backtest(
 
         # =========================== 保存组合账户历史记录 ===========================
         # 将当前期间的记录追加到该组合的历史记录中
-        portfolio_histories[portfolio_index]["total_account_asset"].append(
+        portfolio_histories_dict[portfolio_index]["total_account_asset"].append(
             round(total_portfolio_value, 2)
         )
-        portfolio_histories[portfolio_index]["holding_market_cap"].append(
+        portfolio_histories_dict[portfolio_index]["holding_market_cap"].append(
             round(portfolio_market_value, 2)
         )
-        portfolio_histories[portfolio_index]["cash_account"].append(
+        portfolio_histories_dict[portfolio_index]["cash_account"].append(
             round(cash_balance, 2)
         )
 
@@ -405,25 +480,27 @@ def rolling_backtest(
         portfolio_index = (portfolio_index + 1) % portfolio_count
 
     # =========================== 连接每个组合的多个时间段记录 ===========================
-    print("连接每个组合的多个时间段记录...")
+    logger.success("连接每个组合的多个时间段记录...")
 
     # 为每个组合连接其所有时间段的记录
     combined_portfolio_histories = {}
 
     for portfolio_index in range(portfolio_count):
-        if len(portfolio_histories[portfolio_index]["total_account_asset"]) == 0:
+        if len(portfolio_histories_dict[portfolio_index]["total_account_asset"]) == 0:
             continue
 
-        print(f"连接组合{portfolio_index}号的记录...")
+        logger.info(f"连接组合{portfolio_index}号的记录...")
 
         # 连接该组合的所有时间段记录
         combined_total_asset = pd.concat(
-            portfolio_histories[portfolio_index]["total_account_asset"]
+            portfolio_histories_dict[portfolio_index]["total_account_asset"]
         )
         combined_market_cap = pd.concat(
-            portfolio_histories[portfolio_index]["holding_market_cap"]
+            portfolio_histories_dict[portfolio_index]["holding_market_cap"]
         )
-        combined_cash = pd.concat(portfolio_histories[portfolio_index]["cash_account"])
+        combined_cash = pd.concat(
+            portfolio_histories_dict[portfolio_index]["cash_account"]
+        )
 
         # 处理重复日期：在调仓日会有两个值，保留后面的值（调仓后的资产）
         combined_total_asset = combined_total_asset.groupby(
@@ -441,7 +518,7 @@ def rolling_backtest(
         }
 
     # =========================== 汇总所有组合的账户历史 ===========================
-    print("汇总所有组合的账户历史...")
+    logger.success("汇总所有组合的账户历史...")
 
     # 获取所有组合的日期范围
     all_dates = set()
@@ -480,4 +557,6 @@ def rolling_backtest(
     )
     account_history.loc[initial_date] = [initial_capital, 0, initial_capital]
     account_history = account_history.sort_index()
-    return account_history
+
+    # 返回账户历史和组合信息（用于计算换手率）
+    return account_history, portfolios_dict

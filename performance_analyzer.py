@@ -60,6 +60,7 @@ def get_performance_analysis(
     portfolio_count: int,
     rank_n: int,
     save_path: str,
+    annual_turnover: float,
     rf: float = 0.03,
     show_plot: bool = False,
 ) -> Tuple[pd.DataFrame, Dict[str, Any]]:
@@ -245,6 +246,7 @@ def get_performance_analysis(
         "超额最大回撤": round(Alpha_Max_Drawdown, 4),
         "日胜率": round(Win_Ratio, 4),
         "盈亏比": round(Profit_Lose_Ratio, 4),
+        "换手率": round(annual_turnover, 4),
     }
 
     # 年度收益分析

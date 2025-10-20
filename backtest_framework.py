@@ -11,7 +11,7 @@ from typing import Dict, Any, Tuple, Optional, List
 from data_utils import *
 from performance_analyzer import get_performance_analysis
 from portfolio_weights_gen import generate_portfolio_weights
-from rolling_backtest import rolling_backtest
+from rolling_backtest import rolling_backtest, calc_turnover_rate
 from signal_reader import get_stock_list_from_signal
 from data_coverage_checker import check_data_coverage_for_signal
 from loguru import logger
@@ -133,7 +133,7 @@ class BacktestFramework:
 
             # 步骤4：执行滚动回测
             logger.info("\n=== 步骤4: 执行滚动回测 ===")
-            account_result = rolling_backtest(
+            account_result, portfolios = rolling_backtest(
                 portfolio_weights=portfolio_weights,
                 bars_df=vwap_df,
                 trading_days_df=trading_days,
@@ -141,8 +141,14 @@ class BacktestFramework:
                 rebalance_frequency=self.rebalance_frequency,
             )
 
-            # 步骤5：策略回测结果
-            logger.info("\n=== 步骤5: 策略回测结果 ===")
+            # 步骤5：计算换手率
+            logger.info("\n=== 步骤5: 计算换手率 ===")
+            annual_turnover = calc_turnover_rate(
+                portfolios, self.portfolio_count, self.rebalance_frequency
+            )
+
+            # 步骤6：策略回测结果
+            logger.info("\n=== 步骤6: 策略回测结果 ===")
             get_performance_analysis(
                 account_result=account_result,
                 trading_days_df=trading_days,
@@ -150,6 +156,7 @@ class BacktestFramework:
                 portfolio_count=self.portfolio_count,
                 rank_n=self.rank_n,
                 save_path=self.output_dir,
+                annual_turnover=annual_turnover,
             )
 
         except Exception as e:

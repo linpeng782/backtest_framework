@@ -13,13 +13,13 @@ cache_dir: "/Users/didi/DATA/dnn_model/cache"
  
 # ==================== 策略参数 ====================
 # 每日截面选股数量
-rank_n: 50
+rank_n: 30
 
 # 组合数量（资金分割份数）
-portfolio_count: 1
+portfolio_count: 5
 
 # 调仓频率(daily/weekly/monthly)
-rebalance_frequency: 5
+rebalance_frequency: 1
 
 # ==================== 输出设置 ====================
 # 净值曲线，回测结果将保存到该目录下，如果为空字符串，则不保存
